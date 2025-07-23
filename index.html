@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Enhanced Breakout Scanner</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      background-color: #111;
+      color: #eee;
+      font-family: Arial, sans-serif;
+      padding: 10px;
+      margin: 0;
+    }
+    h1, h2 {
+      text-align: center;
+    }
+    h1 {
+      color: #00ffae;
+      font-size: 6vw;
+    }
+    h2 {
+      color: #ffce00;
+      font-size: 5vw;
+    }
+    .label {
+      color: #999;
+      display: inline-block;
+      min-width: 40%;
+    }
+    .log-console {
+      background: #222;
+      color: #0f0;
+      font-size: 3vw;
+      padding: 10px;
+      margin-top: 10px;
+      border: 1px solid #444;
+      border-radius: 8px;
+      max-height: 200px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+    .trade-box {
+      background: #1e1e1e;
+      border: 1px solid #333;
+      border-radius: 10px;
+      padding: 10px;
+      margin: 10px 0;
+      font-size: 4vw;
+    }
+    .signals-box {
+      margin-top: 10px;
+      padding: 8px;
+      background: #0a3d0a;
+      border-radius: 5px;
+      border: 1px solid #00ff00;
+    }
+    select, button {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      background: #222;
+      color: #eee;
+      border: 1px solid #333;
+      border-radius: 5px;
+      font-size: 4vw;
+    }
+    button:hover {
+      background: #333;
+      cursor: pointer;
+    }
+    .info-box {
+      background: #1a1a2e;
+      border: 1px solid #16213e;
+      border-radius: 8px;
+      padding: 10px;
+      margin: 10px 0;
+      font-size: 3.5vw;
+      color: #ccc;
+    }
+    @media (min-width: 768px) {
+      h1 { font-size: 2em; }
+      h2 { font-size: 1.5em; }
+      .trade-box { font-size: 1em; }
+      .log-console { font-size: 0.9em; }
+      .info-box { font-size: 0.9em; }
+      select, button { font-size: 1em; }
+    }
+  </style>
+</head>
+<body>
+  <h1>🚀 Enhanced Breakout Scanner (Ranks 30–150, Binance)</h1>
+  
+  <div class="info-box">
+    <strong>📈 Advanced Features:</strong><br>
+    ✅ Downtrend Recovery Detection<br>
+    ✅ RSI Bullish Divergence<br>
+    ✅ Stochastic RSI Bullish Cross<br>
+    ✅ Volume Surge Confirmation<br>
+    ✅ Recent Resistance Breakout
+  </div>
+
+  <label for="timeframe">Select Timeframe:</label>
+  <select id="timeframe">
+    <option value="1m">1 Minute</option>
+    <option value="3m">3 Minutes</option>
+    <option value="5m">5 Minutes</option>
+    <option value="15m" selected>15 Minutes</option>
+    <option value="30m">30 Minutes</option>
+    <option value="1h">1 Hour</option>
+    <option value="4h">4 Hours</option>
+    <option value="1d">1 Day</option>
+    <option value="1w">1 Week</option>
+  </select>
+  <button id="scanButton">🔍 Search Enhanced Breakouts</button>
+  <div id="trades"></div>
+  <div class="log-console" id="log-console">Ready to scan for enhanced breakout setups...</div>
+
+  <script>
+    const container = document.getElementById("trades");
+    const logConsole = document.getElementById("log-console");
+    const timeframeSelect = document.getElementById("timeframe");
+    const scanButton = document.getElementById("scanButton");
+    const BINANCE_API = 'https://api.binance.com';
+
+    const log = msg => {
+      logConsole.innerText += `\n${new Date().toLocaleTimeString()}: ${msg}`;
+      logConsole.scrollTop = logConsole.scrollHeight;
+    };
+
+    const getCandleCount = tf => {
+      const map = { '1m': 200, '3m': 180, '5m': 150, '15m': 120, '30m': 100, '1h': 80, '4h': 60, '1d': 50, '1w': 30 };
+      return map[tf] || 100;
+    };
+
+    const getProximityPercentage = tf => {
+      const map = { '1m': 0.005, '3m': 0.007, '5m': 0.01, '15m': 0.012, '30m': 0.015, '1h': 0.018, '4h': 0.02, '1d': 0.025, '1w': 0.05 };
+      return map[tf] || 0.02;
+    };
+
+    const fetchTickers = async () => {
+      const res = await fetch(`${BINANCE_API}/api/v3/ticker/24hr`);
+      const data = await res.json();
+      return data.filter(d => d.symbol.endsWith('USDT') && !d.symbol.includes('UP') && !d.symbol.includes('DOWN'))
+        .map(d => ({ symbol: d.symbol, volume: parseFloat(d.quoteVolume) }))
+        .sort((a, b) => b.volume - a.volume);
+    };
+
+    const fetchCandles = async (symbol, tf, limit) => {
+      const res = await fetch(`${BINANCE_API}/api/v3/klines?symbol=${symbol}&interval=${tf}&limit=${limit}`);
+      const data = await res.json();
+      return data.map(c => ({ time: c[0], open: +c[1], high: +c[2], low: +c[3], close: +c[4], volume: +c[5] }));
+    };
+
+    const countTouches = (candles, level, threshold) =>
+      candles.filter(c => Math.abs(c.high - level) / level < threshold).length;
+
+    // RSI calculation
+    const calculateRSI = (prices, period = 14) => {
+      if (prices.length < period + 1) return [];
+      const gains = [], losses = [];
+      for (let i = 1; i < prices.length; i++) {
+        const change = prices[i] - prices[i - 1];
+        gains.push(change > 0 ? change : 0);
+        losses.push(change < 0 ? Math.abs(change) : 0);
+      }
+      const rsi = [];
+      for (let i = period - 1; i < gains.length; i++) {
+        const avgGain = gains.slice(i - period + 1, i + 1).reduce((a, b) => a + b) / period;
+        const avgLoss = losses.slice(i - period + 1, i + 1).reduce((a, b) => a + b) / period;
+        rsi.push(avgLoss === 0 ? 100 : 100 - (100 / (1 + avgGain / avgLoss)));
+      }
+      return rsi;
+    };
+
+    // Stochastic RSI calculation
+    const calculateStochRSI = (rsi, period = 14) => {
+      if (rsi.length < period) return { k: [], d: [] };
+      const stochRSI = [];
+      for (let i = period - 1; i < rsi.length; i++) {
+        const rsiPeriod = rsi.slice(i - period + 1, i + 1);
+        const minRSI = Math.min(...rsiPeriod);
+        const maxRSI = Math.max(...rsiPeriod);
+        stochRSI.push(maxRSI === minRSI ? 0 : (rsi[i] - minRSI) / (maxRSI - minRSI) * 100);
+      }
+      // %K line
+      const k = [];
+      for (let i = 2; i < stochRSI.length; i++) {
+        k.push((stochRSI[i] + stochRSI[i-1] + stochRSI[i-2]) / 3);
+      }
+      // %D line
+      const d = [];
+      for (let i = 2; i < k.length; i++) {
+        d.push((k[i] + k[i-1] + k[i-2]) / 3);
+      }
+      return { k, d };
+    };
+
+    // Check for RSI bullish divergence
+    const checkRSIDivergence = (prices, rsi) => {
+      if (prices.length < 20 || rsi.length < 20) return false;
+      const recentPrices = prices.slice(-20);
+      const recentRSI = rsi.slice(-20);
+      
+      // Find recent low in price
+      let priceLowIdx = 0;
+      for (let i = 1; i < recentPrices.length - 1; i++) {
+        if (recentPrices[i] < recentPrices[priceLowIdx]) priceLowIdx = i;
+      }
+      
+      // Find recent low in RSI
+      let rsiLowIdx = 0;
+      for (let i = 1; i < recentRSI.length - 1; i++) {
+        if (recentRSI[i] < recentRSI[rsiLowIdx]) rsiLowIdx = i;
+      }
+      
+      // Check if price made lower low but RSI made higher low
+      if (priceLowIdx < recentPrices.length - 5 && rsiLowIdx < recentRSI.length - 5) {
+        const priceRecovery = recentPrices[recentPrices.length - 1] > recentPrices[priceLowIdx];
+        const rsiHigherLow = recentRSI[rsiLowIdx] > 30 && recentRSI[recentRSI.length - 1] > recentRSI[rsiLowIdx] + 5;
+        return priceRecovery && rsiHigherLow;
+      }
+      return false;
+    };
+
+    // Check for recent downtrend followed by recovery
+    const checkDowntrendRecovery = (candles) => {
+      if (candles.length < 30) return false;
+      const prices = candles.map(c => c.close);
+      
+      // Check for downtrend in first 60% of period
+      const downtrendPeriod = Math.floor(candles.length * 0.6);
+      const downtrendCandles = candles.slice(0, downtrendPeriod);
+      let downtrendCount = 0;
+      for (let i = 5; i < downtrendCandles.length; i++) {
+        if (downtrendCandles[i].close < downtrendCandles[i-5].close) downtrendCount++;
+      }
+      const wasInDowntrend = downtrendCount > downtrendPeriod * 0.4;
+      
+      // Check for recent recovery with volume
+      const recoveryPeriod = candles.slice(downtrendPeriod);
+      const avgVolume = candles.slice(0, -5).reduce((a, c) => a + c.volume, 0) / (candles.length - 5);
+      let recoveryWithVolume = 0;
+      for (let i = 1; i < recoveryPeriod.length; i++) {
+        if (recoveryPeriod[i].close > recoveryPeriod[i-1].close && recoveryPeriod[i].volume > avgVolume) {
+          recoveryWithVolume++;
+        }
+      }
+      
+      return wasInDowntrend && recoveryWithVolume >= 3;
+    };
+
+    const findFVGTargets = (candles, breakoutPrice) => {
+      const fvg = [];
+      for (let i = 2; i < candles.length - 2; i++) {
+        const prevHigh = candles[i - 1].high;
+        const nextLow = candles[i + 1].low;
+        if (nextLow > prevHigh && nextLow > breakoutPrice && (nextLow - prevHigh) / breakoutPrice > 0.01) {
+          fvg.push({ level: nextLow, gap: nextLow - prevHigh });
+        }
+      }
+      return fvg.sort((a, b) => b.gap - a.gap).slice(0, 2).map(f => f.level);
+    };
+
+    async function fetchBreakouts(tf) {
+      logConsole.innerText = "🔍 Starting enhanced breakout scan...";
+      container.innerHTML = "";
+      
+      try {
+        log("Fetching market data...");
+        const tickers = await fetchTickers();
+        const candidates = tickers.slice(30, 150);
+        const setups = [];
+        const limit = getCandleCount(tf);
+        const proximity = getProximityPercentage(tf);
+        let processedCount = 0;
+
+        log(`Analyzing ${candidates.length} coins for advanced patterns...`);
+
+        for (const coin of candidates) {
+          try {
+            processedCount++;
+            log(`[${processedCount}/${candidates.length}] Analyzing ${coin.symbol}`);
+            
+            const candles = await fetchCandles(coin.symbol, tf, limit);
+            if (candles.length < 50) continue;
+
+            const recent = candles.slice(-Math.min(40, candles.length));
+            const resistance = Math.max(...recent.slice(0, -1).map(c => c.high));
+            const touches = countTouches(recent.slice(0, -1), resistance, proximity);
+            const last = recent[recent.length - 1];
+            const avgVol = recent.slice(0, -1).reduce((a, c) => a + c.volume, 0) / (recent.length - 1);
+            const atr = recent.slice(-15).reduce((acc, c, i, arr) => {
+              if (i === 0) return acc;
+              const prev = arr[i - 1].close;
+              return acc + Math.max(c.high - c.low, Math.abs(c.high - prev), Math.abs(c.low - prev));
+            }, 0) / 14;
+
+            // Enhanced analysis with new indicators
+            const prices = candles.map(c => c.close);
+            const rsi = calculateRSI(prices);
+            const stochRSI = calculateStochRSI(rsi);
+            
+            // Check downtrend recovery pattern
+            const hadDowntrendRecovery = checkDowntrendRecovery(candles.slice(-50));
+            
+            // Check RSI bullish divergence
+            const hasBullishDivergence = checkRSIDivergence(prices.slice(-30), rsi.slice(-30));
+            
+            // Check Stochastic RSI bullish cross
+            const hasStochBullishCross = stochRSI.k.length >= 2 && stochRSI.d.length >= 2 &&
+              stochRSI.k[stochRSI.k.length - 1] > stochRSI.d[stochRSI.d.length - 1] &&
+              stochRSI.k[stochRSI.k.length - 2] <= stochRSI.d[stochRSI.d.length - 2] &&
+              stochRSI.k[stochRSI.k.length - 1] < 80; // Not overbought
+            
+            // Volume surge confirmation
+            const volumeSurge = last.volume > avgVol * 1.8;
+            
+            // Recent resistance formation (looking for consolidation after recovery)
+            const recentCandles = candles.slice(-15);
+            const recentHighs = recentCandles.map(c => c.high);
+            const resistanceLevel = Math.max(...recentHighs.slice(0, -2)); // Exclude last 2 candles
+            const resistanceTouches = countTouches(recentCandles.slice(0, -2), resistanceLevel, proximity);
+            
+            const priceToResistance = (last.close - resistance) / resistance;
+            const breakingResistance = last.close > resistanceLevel && last.high > resistanceLevel;
+            
+            // Enhanced conditions
+            const meetsCriteria = touches >= 3 && 
+                                 hadDowntrendRecovery && 
+                                 hasBullishDivergence && 
+                                 hasStochBullishCross && 
+                                 volumeSurge && 
+                                 breakingResistance &&
+                                 resistanceTouches >= 2;
+
+            if (meetsCriteria) {
+              const entry = last.close;
+              const stop = entry - atr * 1.5;
+              const targets = findFVGTargets(candles, entry);
+              
+              setups.push({
+                symbol: coin.symbol,
+                entry: entry.toFixed(6),
+                stop_loss: stop.toFixed(6),
+                resistance: resistance.toFixed(6),
+                recent_resistance: resistanceLevel.toFixed(6),
+                fvg_targets: targets.map(x => x.toFixed(6)),
+                atr: atr.toFixed(6),
+                avg_vol: avgVol.toFixed(2),
+                vol: last.volume.toFixed(2),
+                volume_surge: ((last.volume / avgVol) * 100).toFixed(0) + '%',
+                touches,
+                resistance_touches: resistanceTouches,
+                rsi_current: rsi.length > 0 ? rsi[rsi.length - 1].toFixed(2) : 'N/A',
+                stoch_k: stochRSI.k.length > 0 ? stochRSI.k[stochRSI.k.length - 1].toFixed(2) : 'N/A',
+                stoch_d: stochRSI.d.length > 0 ? stochRSI.d[stochRSI.d.length - 1].toFixed(2) : 'N/A',
+                signals: {
+                  downtrend_recovery: hadDowntrendRecovery,
+                  rsi_divergence: hasBullishDivergence,
+                  stoch_bullish_cross: hasStochBullishCross,
+                  volume_surge: volumeSurge,
+                  breaking_resistance: breakingResistance
+                },
+                priceToResistance: (priceToResistance * 100).toFixed(2) + '%'
+              });
+              
+              log(`✅ QUALIFIED: ${coin.symbol} - All criteria met!`);
+            }
+
+            // Small delay to prevent rate limiting
+            if (processedCount % 10 === 0) {
+              await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
+          } catch (e) {
+            log(`❌ Error analyzing ${coin.symbol}: ${e.message}`);
+          }
+        }
+
+        log(`🎯 Scan complete! Found ${setups.length} qualified setups.`);
+        
+        setTimeout(() => {
+          logConsole.style.display = 'none';
+        }, 5000);
+
+        container.innerHTML = setups.length === 0
+          ? "<div class='info-box'>❌ No qualified breakout setups found. The enhanced scanner looks for coins recovering from downtrends with RSI divergence and Stochastic RSI bullish crosses. Try a different timeframe or check back later.</div>"
+          : setups.map(t => `
+            <div class="trade-box">
+              <h2>🎯 ${t.symbol}</h2>
+              <p><span class="label">💰 Entry:</span> ${t.entry}</p>
+              <p><span class="label">🔴 Original Resistance:</span> ${t.resistance}</p>
+              <p><span class="label">🟡 Recent Resistance:</span> ${t.recent_resistance}</p>
+              <p><span class="label">👆 Resistance Touches:</span> ${t.touches} | Recent: ${t.resistance_touches}</p>
+              <p><span class="label">📊 % from Resistance:</span> ${t.priceToResistance}</p>
+              <p><span class="label">🛑 Stop Loss:</span> ${t.stop_loss}</p>
+              <p><span class="label">🎯 FVG Targets:</span> ${t.fvg_targets.length > 0 ? t.fvg_targets.join(' → ') : 'No FVG targets'}</p>
+              <p><span class="label">📏 ATR:</span> ${t.atr}</p>
+              <p><span class="label">📈 Volume Surge:</span> ${t.volume_surge} of avg (${t.avg_vol} → ${t.vol})</p>
+              <p><span class="label">📊 RSI:</span> ${t.rsi_current} | <span class="label">Stoch K/D:</span> ${t.stoch_k}/${t.stoch_d}</p>
+              <div class="signals-box">
+                <strong>✅ Confirmed Signals:</strong><br>
+                ${Object.entries(t.signals).filter(([k,v]) => v).map(([k,v]) => 
+                  '🔥 ' + k.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+                ).join('<br>')}
+              </div>
+            </div>
+          `).join('');
+
+      } catch (error) {
+        log(`❌ Scan failed: ${error.message}`);
+        container.innerHTML = `<div class='info-box'>❌ Error: ${error.message}. Please check your internet connection and try again.</div>`;
+      }
+    }
+
+    scanButton.addEventListener("click", () => {
+      const tf = timeframeSelect.value;
+      logConsole.style.display = 'block';
+      scanButton.disabled = true;
+      scanButton.textContent = '🔄 Scanning...';
+      
+      fetchBreakouts(tf).finally(() => {
+        scanButton.disabled = false;
+        scanButton.textContent = '🔍 Search Enhanced Breakouts';
+      });
+    });
+
+    // Initialize
+    log("Enhanced Breakout Scanner ready! 🚀");
+  </script>
+</body>
+</html>
