@@ -401,7 +401,7 @@
       
       try {
         log("Fetching top 350 coins by market cap...");
-        const topCoins = await fetchTopCoinsByRank(350);
+        const topCoins = await fetchTopCoinsByRank(300);
         const candidates = topCoins.slice(30, 150); // Still use ranks 30-150 for scanning
         const setups = [];
         const limit = getCandleCount(tf);
@@ -447,7 +447,7 @@
               stochRSI.k[stochRSI.k.length - 1] < 80; // Not overbought
             
             // Volume surge confirmation
-            const volumeSurge = last.volume > avgVol * 1.8;
+            const volumeSurge = last.volume > avgVol * 1.5;
             
             // Recent resistance formation (looking for consolidation after recovery)
             const recentCandles = candles.slice(-15);
