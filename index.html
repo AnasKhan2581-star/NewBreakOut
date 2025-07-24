@@ -89,10 +89,12 @@
   </style>
 </head>
 <body>
-  <h1>🚀 Enhanced Breakout Scanner (Ranks 30–150, Binance)</h1>
+  <h1>🚀 Enhanced Breakout Scanner (Top 350 Coins by Market Cap)</h1>
   
   <div class="info-box">
     <strong>📈 Advanced Features:</strong><br>
+    ✅ Top 350 Coins by Market Cap (CoinGecko)<br>
+    ✅ Individual Coin Analysis & Verdict<br>
     ✅ Downtrend Recovery Detection<br>
     ✅ RSI Bullish Divergence<br>
     ✅ Stochastic RSI Bullish Cross<br>
@@ -113,6 +115,15 @@
     <option value="1w">1 Week</option>
   </select>
   <button id="scanButton">🔍 Search Enhanced Breakouts</button>
+  
+  <div style="margin: 20px 0; padding: 15px; background: #1a1a2e; border: 1px solid #16213e; border-radius: 8px;">
+    <h3 style="color: #00ffae; margin-top: 0;">🔍 Individual Coin Analysis</h3>
+    <input type="text" id="coinInput" placeholder="Enter coin symbol (e.g., BTCUSDT)" 
+           style="width: 70%; padding: 10px; background: #222; color: #eee; border: 1px solid #333; border-radius: 5px; font-size: 1em; margin-right: 10px;">
+    <button id="analyzeCoinButton" style="width: 25%; padding: 10px; margin: 0;">🔬 Analyze</button>
+    <div id="coinAnalysis" style="margin-top: 15px;"></div>
+  </div>
+
   <div id="trades"></div>
   <div class="log-console" id="log-console">Ready to scan for enhanced breakout setups...</div>
 
@@ -121,6 +132,9 @@
     const logConsole = document.getElementById("log-console");
     const timeframeSelect = document.getElementById("timeframe");
     const scanButton = document.getElementById("scanButton");
+    const analyzeCoinButton = document.getElementById("analyzeCoinButton");
+    const coinInput = document.getElementById("coinInput");
+    const coinAnalysis = document.getElementById("coinAnalysis");
     const BINANCE_API = 'https://api.binance.com';
 
     const log = msg => {
@@ -144,6 +158,34 @@
       return data.filter(d => d.symbol.endsWith('USDT') && !d.symbol.includes('UP') && !d.symbol.includes('DOWN'))
         .map(d => ({ symbol: d.symbol, volume: parseFloat(d.quoteVolume) }))
         .sort((a, b) => b.volume - a.volume);
+    };
+
+    // Fetch top coins by market cap from CoinGecko
+    const fetchTopCoinsByRank = async (limit = 350) => {
+      try {
+        const response = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=${limit}&page=1&sparkline=false`);
+        const data = await response.json();
+        
+        // Convert to Binance USDT pairs
+        const coinSymbols = data.map(coin => {
+          const symbol = coin.symbol.toUpperCase();
+          return `${symbol}USDT`;
+        });
+        
+        // Verify which symbols exist on Binance
+        const binanceTickers = await fetchTickers();
+        const binanceSymbols = new Set(binanceTickers.map(t => t.symbol));
+        
+        return coinSymbols.filter(symbol => binanceSymbols.has(symbol))
+                         .map(symbol => {
+                           const ticker = binanceTickers.find(t => t.symbol === symbol);
+                           return { symbol, volume: ticker ? ticker.volume : 0 };
+                         });
+      } catch (error) {
+        console.error('Error fetching CoinGecko data, falling back to Binance volume ranking');
+        const tickers = await fetchTickers();
+        return tickers.slice(0, limit);
+      }
     };
 
     const fetchCandles = async (symbol, tf, limit) => {
@@ -250,6 +292,97 @@
       return wasInDowntrend && recoveryWithVolume >= 3;
     };
 
+    // Comprehensive coin analysis function
+    const analyzeCoin = async (symbol, tf) => {
+      const limit = getCandleCount(tf);
+      const proximity = getProximityPercentage(tf);
+      
+      try {
+        const candles = await fetchCandles(symbol, tf, limit);
+        if (candles.length < 50) {
+          return { error: 'Insufficient data for analysis' };
+        }
+
+        const recent = candles.slice(-Math.min(40, candles.length));
+        const resistance = Math.max(...recent.slice(0, -1).map(c => c.high));
+        const touches = countTouches(recent.slice(0, -1), resistance, proximity);
+        const last = recent[recent.length - 1];
+        const avgVol = recent.slice(0, -1).reduce((a, c) => a + c.volume, 0) / (recent.length - 1);
+        
+        const atr = recent.slice(-15).reduce((acc, c, i, arr) => {
+          if (i === 0) return acc;
+          const prev = arr[i - 1].close;
+          return acc + Math.max(c.high - c.low, Math.abs(c.high - prev), Math.abs(c.low - prev));
+        }, 0) / 14;
+
+        // Technical analysis
+        const prices = candles.map(c => c.close);
+        const rsi = calculateRSI(prices);
+        const stochRSI = calculateStochRSI(rsi);
+        
+        // Check all criteria
+        const hadDowntrendRecovery = checkDowntrendRecovery(candles.slice(-50));
+        const hasBullishDivergence = checkRSIDivergence(prices.slice(-30), rsi.slice(-30));
+        const hasStochBullishCross = stochRSI.k.length >= 2 && stochRSI.d.length >= 2 &&
+          stochRSI.k[stochRSI.k.length - 1] > stochRSI.d[stochRSI.d.length - 1] &&
+          stochRSI.k[stochRSI.k.length - 2] <= stochRSI.d[stochRSI.d.length - 2] &&
+          stochRSI.k[stochRSI.k.length - 1] < 80;
+        
+        const volumeSurge = last.volume > avgVol * 1.8;
+        
+        const recentCandles = candles.slice(-15);
+        const recentHighs = recentCandles.map(c => c.high);
+        const resistanceLevel = Math.max(...recentHighs.slice(0, -2));
+        const resistanceTouches = countTouches(recentCandles.slice(0, -2), resistanceLevel, proximity);
+        
+        const priceToResistance = (last.close - resistance) / resistance;
+        const breakingResistance = last.close > resistanceLevel && last.high > resistanceLevel;
+        
+        // Final verdict
+        const qualifiesForBreakout = touches >= 3 && 
+                                   hadDowntrendRecovery && 
+                                   hasBullishDivergence && 
+                                   hasStochBullishCross && 
+                                   volumeSurge && 
+                                   breakingResistance &&
+                                   resistanceTouches >= 2;
+
+        const entry = last.close;
+        const stop = entry - atr * 1.5;
+        const targets = findFVGTargets(candles, entry);
+
+        return {
+          symbol,
+          qualifies: qualifiesForBreakout,
+          current_price: last.close.toFixed(6),
+          entry: entry.toFixed(6),
+          stop_loss: stop.toFixed(6),
+          resistance: resistance.toFixed(6),
+          recent_resistance: resistanceLevel.toFixed(6),
+          fvg_targets: targets.map(x => x.toFixed(6)),
+          atr: atr.toFixed(6),
+          volume_ratio: (last.volume / avgVol).toFixed(2),
+          touches,
+          resistance_touches: resistanceTouches,
+          rsi_current: rsi.length > 0 ? rsi[rsi.length - 1].toFixed(2) : 'N/A',
+          stoch_k: stochRSI.k.length > 0 ? stochRSI.k[stochRSI.k.length - 1].toFixed(2) : 'N/A',
+          stoch_d: stochRSI.d.length > 0 ? stochRSI.d[stochRSI.d.length - 1].toFixed(2) : 'N/A',
+          criteria: {
+            sufficient_touches: touches >= 3,
+            downtrend_recovery: hadDowntrendRecovery,
+            rsi_divergence: hasBullishDivergence,
+            stoch_bullish_cross: hasStochBullishCross,
+            volume_surge: volumeSurge,
+            breaking_resistance: breakingResistance,
+            recent_resistance_formation: resistanceTouches >= 2
+          },
+          priceToResistance: (priceToResistance * 100).toFixed(2) + '%'
+        };
+
+      } catch (error) {
+        return { error: error.message };
+      }
+    };
     const findFVGTargets = (candles, breakoutPrice) => {
       const fvg = [];
       for (let i = 2; i < candles.length - 2; i++) {
@@ -267,9 +400,9 @@
       container.innerHTML = "";
       
       try {
-        log("Fetching market data...");
-        const tickers = await fetchTickers();
-        const candidates = tickers.slice(30, 150);
+        log("Fetching top 350 coins by market cap...");
+        const topCoins = await fetchTopCoinsByRank(350);
+        const candidates = topCoins.slice(30, 150); // Still use ranks 30-150 for scanning
         const setups = [];
         const limit = getCandleCount(tf);
         const proximity = getProximityPercentage(tf);
@@ -413,6 +546,84 @@
         container.innerHTML = `<div class='info-box'>❌ Error: ${error.message}. Please check your internet connection and try again.</div>`;
       }
     }
+
+    // Individual coin analysis event handler
+    analyzeCoinButton.addEventListener("click", async () => {
+      const coinSymbol = coinInput.value.trim().toUpperCase();
+      if (!coinSymbol) {
+        coinAnalysis.innerHTML = "<div style='color: #ff6b6b;'>❌ Please enter a coin symbol</div>";
+        return;
+      }
+
+      // Ensure symbol ends with USDT
+      const symbol = coinSymbol.endsWith('USDT') ? coinSymbol : coinSymbol + 'USDT';
+      const tf = timeframeSelect.value;
+
+      coinAnalysis.innerHTML = "<div style='color: #ffd93d;'>🔄 Analyzing " + symbol + "...</div>";
+      analyzeCoinButton.disabled = true;
+
+      try {
+        const analysis = await analyzeCoin(symbol, tf);
+        
+        if (analysis.error) {
+          coinAnalysis.innerHTML = `<div style='color: #ff6b6b;'>❌ Error: ${analysis.error}</div>`;
+          return;
+        }
+
+        const verdictColor = analysis.qualifies ? '#00ff88' : '#ff6b6b';
+        const verdictText = analysis.qualifies ? '✅ QUALIFIED FOR BREAKOUT' : '❌ DOES NOT QUALIFY';
+        
+        coinAnalysis.innerHTML = `
+          <div style="background: #2a2a3e; border: 2px solid ${verdictColor}; border-radius: 10px; padding: 15px; margin-top: 10px;">
+            <h3 style="color: ${verdictColor}; margin-top: 0; text-align: center;">
+              ${verdictText}
+            </h3>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 15px 0;">
+              <div><strong>💰 Current Price:</strong> ${analysis.current_price}</div>
+              <div><strong>🎯 Entry:</strong> ${analysis.entry}</div>
+              <div><strong>🛑 Stop Loss:</strong> ${analysis.stop_loss}</div>
+              <div><strong>📏 ATR:</strong> ${analysis.atr}</div>
+              <div><strong>🔴 Resistance:</strong> ${analysis.resistance}</div>
+              <div><strong>🟡 Recent Resistance:</strong> ${analysis.recent_resistance}</div>
+              <div><strong>👆 Touches:</strong> ${analysis.touches} | Recent: ${analysis.resistance_touches}</div>
+              <div><strong>📊 Volume Ratio:</strong> ${analysis.volume_ratio}x</div>
+              <div><strong>📈 RSI:</strong> ${analysis.rsi_current}</div>
+              <div><strong>📊 Stoch K/D:</strong> ${analysis.stoch_k}/${analysis.stoch_d}</div>
+            </div>
+            
+            ${analysis.fvg_targets.length > 0 ? 
+              `<div><strong>🎯 FVG Targets:</strong> ${analysis.fvg_targets.join(' → ')}</div>` : 
+              '<div><strong>🎯 FVG Targets:</strong> No targets found</div>'
+            }
+            
+            <div style="margin-top: 15px; padding: 10px; background: #1a1a2e; border-radius: 5px;">
+              <strong>📋 Criteria Checklist:</strong><br>
+              ${Object.entries(analysis.criteria).map(([key, passed]) => 
+                `${passed ? '✅' : '❌'} ${key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}`
+              ).join('<br>')}
+            </div>
+            
+            ${analysis.qualifies ? 
+              '<div style="margin-top: 10px; padding: 10px; background: #0a3d0a; border-radius: 5px; color: #00ff88;"><strong>🚀 This coin meets all criteria for a breakout setup!</strong></div>' :
+              '<div style="margin-top: 10px; padding: 10px; background: #3d0a0a; border-radius: 5px; color: #ff6b6b;"><strong>⚠️ This coin does not meet the required criteria for our breakout strategy.</strong></div>'
+            }
+          </div>
+        `;
+
+      } catch (error) {
+        coinAnalysis.innerHTML = `<div style='color: #ff6b6b;'>❌ Error analyzing ${symbol}: ${error.message}</div>`;
+      } finally {
+        analyzeCoinButton.disabled = false;
+      }
+    });
+
+    // Allow Enter key to trigger analysis
+    coinInput.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") {
+        analyzeCoinButton.click();
+      }
+    });
 
     scanButton.addEventListener("click", () => {
       const tf = timeframeSelect.value;
