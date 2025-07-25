@@ -162,7 +162,7 @@ async function analyse(sym,intv,opt){
   ];
   const passed=crit.filter(c=>c.p).length, need=4+['rsiDiv','macd','obv'].filter(k=>opt[k]).length;
   return{sym,qual:passed>=need,crit,passed,need,
-         price:last.c,resHi,resLo,stop:stop.toFixed(6),rr:bestRR.toFixed(2),
+         price:last.c,resHi,resLo,stop:stop.toFixed(3),rr:bestRR.toFixed(2),
          vol:last.v,targets};
  }catch(e){return{error:e.message}}
 }
@@ -170,12 +170,12 @@ async function analyse(sym,intv,opt){
 /*--- RENDER ---*/
 const row=c=>`<tr><td>${c.n}</td><td class="${c.p?'pass':'fail'}">${c.p?'✅':'❌'} ${c.val}</td></tr>`;
 function render(s,w){
-  const tgt=s.targets.map(t=>`${t.price.toFixed(6)} (${t.pct}%)`).join(" → ")||"–";
+  const tgt=s.targets.map(t=>`${t.price.toFixed(3)} (${t.pct}%)`).join(" → ")||"–";
   w.innerHTML+=`<div class="trade-box">
    <h2>${s.qual?'✅':'❌'} <b>${s.sym}</b> ${s.qual?'Setup':'– Not Qualified'}</h2>
    <table><tr><th>Key</th><th>Value</th></tr>
-     <tr><td>Entry</td><td>${s.price.toFixed(6)}</td></tr>
-     <tr><td>Res Range</td><td>${s.resLo.toFixed(6)}-${s.resHi.toFixed(6)}</td></tr>
+     <tr><td>Entry</td><td>${s.price.toFixed(3)}</td></tr>
+     <tr><td>Res Range</td><td>${s.resLo.toFixed(3)}-${s.resHi.toFixed(3)}</td></tr>
      <tr><td>Stop</td><td>${s.stop}</td></tr>
      <tr><td>Targets</td><td>${tgt}</td></tr>
      <tr><td>R:R</td><td>${s.rr}</td></tr>
