@@ -153,7 +153,7 @@ async function analyse(sym,intv,opt){
   const crit=[
    {n:"Drop-Recovery structure",p:downTrend,val:`${dropWin} candles`},
    {n:"Range Breakout",p:brokeRange,val:`${resLo.toFixed(4)}-${resHi.toFixed(4)}`},
-   {n:"Volume Surge",p:vSurge,val:last.v.toFixed(3)/ ${avgVol.toFixed(3)}},
+   {n:"Volume Surge",p:vSurge,val:last.v.toFixed(3)},
    {n:"Bullish Stoch Cross",p:stochCross&&stochBelow40,val:`K ${K.at(-1)?.toFixed(1)}`},
    {n:`R:R ≥ ${opt.minRR}`,p:bestRR>=opt.minRR,val:bestRR.toFixed(2)},
    {n:"RSI Divergence",p:!opt.rsiDiv||rsiDiv,val:""},
