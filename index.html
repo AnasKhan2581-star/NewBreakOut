@@ -130,7 +130,7 @@ async function analyse(sym,intv,opt){
 
   /* 4) ATR stop & RR */
   const atr=avg(cs.slice(-15).map((c,i,a)=>i?Math.max(c.h-c.l,Math.abs(c.h-a[i-1].c),Math.abs(c.l-a[i-1].c)):0));
-  const stop=last.c-2*atr, bestRR=targets.length?Math.max(...targets.map(t=>(t.price-last.c)/(last.c-stop))):0;
+  const stop=last.c-1.5*atr, bestRR=targets.length?Math.max(...targets.map(t=>(t.price-last.c)/(last.c-stop))):0;
 
   /* 5) Indicators */
   const rsis=rsi(closes),stoch=stochRsi(rsis),K=stoch.K,D=stoch.D;
