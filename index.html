@@ -120,8 +120,7 @@ function calcRSI(closes,p=14){
   for(let i=p-1;i<gains.length;i++){
     const ag=avg(gains.slice(i-p+1,i+1));
     const al=avg(losses.slice(i-p+1,i+1));
-    const rs=al===0?100:100-100/(1+ag/al);
-    rsi.push(rs);
+    rsi.push(al===0?100:100-100/(1+ag/al));
   }
   return rsi;
 }
@@ -135,7 +134,6 @@ function calcStochRSI(rsi,p=14){
     const min=Math.min(...slice),max=Math.max(...slice);
     raw.push(max===min?0:((rsi[i]-min)/(max-min))*100);
   }
-  /* 3-period SMA for %K and %D */
   const K=[],D=[];
   for(let i=2;i<raw.length;i++){
     K.push(avg(raw.slice(i-2,i+1)));
@@ -236,8 +234,8 @@ async function analyse(sym,intvl,settings){
     const proxPass=proxPct<=1.5;
 
     /* Targets                                                      */
-    const fvg=fairValueGaps(c,last.close,settings.minTargetPct);
-    const pivots=pivotHighTargets(c,last.close,settings.minTargetPct);
+    const fvg=fairValueGaps(c,last.close,minTargetPct);
+    const pivots=pivotHighTargets(c,last.close,minTargetPct);
     const targets=[...fvg,...pivots].slice(0,5);
 
     /* ATR-based stop (2×ATR below entry)                           */
@@ -320,14 +318,35 @@ async function scan(){
     document.getElementById("coinsScanned").textContent=++i;
     log(`Analysing ${coin.symbol} (${i}/${coins.length})`);
     const s=await analyse(coin.symbol,tf,settings);
-    if(!s.error && s.qualified){setups.push(s);document.getElementById("qualifiedSetups").textContent=setups.length;}
+    if(!s.error && s.qualified){
+      setups.push(s);
+      document.getElementById("qualifiedSetups").textContent=setups.length;
+    }
     if(i%12===0) await sleep(1000);   // gentle rate-limit
   }
-  if(!setups.length){wrap.innerHTML="<p style='color:var(--fail);text-align:center;font-weight:bold'>No qualified breakouts.</p>";}
-  else{
-    const avgRR=avg(setups.map(x=>+x.riskReward));document.getElementById("avgRR").textContent=avgRR.toFixed(2);
+
+  if(!setups.length){
+    wrap.innerHTML="<p style='color:var(--fail);text-align:center;font-weight:bold'>No qualified breakouts.</p>";
+  }else{
+    /* ----------  SORTING LOGIC  ----------
+       1) coins passing all 5 criteria
+       2) coins passing volume criteria + ≥3 others (passed ≥4 AND criteria[0].pass)
+       3) the rest
+    -------------------------------------- */
+    setups.sort((a,b)=>{
+      const aVol=a.criteria[0].pass, bVol=b.criteria[0].pass;
+      const aGroup=(a.passed===5)?0:(aVol && a.passed>=4)?1:2;
+      const bGroup=(b.passed===5)?0:(bVol && b.passed>=4)?1:2;
+      if(aGroup!==bGroup) return aGroup-bGroup;
+      if(a.passed!==b.passed) return b.passed-a.passed;
+      return parseFloat(b.riskReward)-parseFloat(a.riskReward);
+    });
+
+    const avgRR=avg(setups.map(x=>+x.riskReward));
+    document.getElementById("avgRR").textContent=avgRR.toFixed(2);
     const avgTgt=avg(setups.map(x=>(x.targets.length?+x.targets[0]:0)/x.price))*100;
     document.getElementById("avgTarget").textContent=avgTgt.toFixed(2)+" %";
+
     setups.forEach(s=>render(s,wrap));
   }
   btn.disabled=false;
@@ -342,10 +361,18 @@ document.getElementById("analyzeCoinButton").addEventListener("click",async()=>{
   const symInp=document.getElementById("individualCoinInput");
   const out=document.getElementById("individualAnalysisResult");
   const tf=document.getElementById("timeframe").value;
-  let sym=symInp.value.trim().toUpperCase(); if(!sym) return out.innerHTML="<p style='color:var(--fail)'>Enter symbol</p>";
+  let sym=symInp.value.trim().toUpperCase();
+  if(!sym){
+    out.innerHTML="<p style='color:var(--fail)'>Enter symbol</p>";
+    return;
+  }
   if(!sym.endsWith("USDT")) sym+="USDT";
   out.innerHTML="<p>Analysing …</p>";
-  const res=await analyse(sym,tf,{minRR:+document.getElementById("minRR").value,minTargetPct:+document.getElementById("minTargetPercent").value,volMult:+document.getElementById("volumeMultiplier").value});
+  const res=await analyse(sym,tf,{
+    minRR:+document.getElementById("minRR").value,
+    minTargetPct:+document.getElementById("minTargetPercent").value,
+    volMult:+document.getElementById("volumeMultiplier").value
+  });
   if(res.error) out.innerHTML=`<p style='color:var(--fail)'>${res.error}</p>`;
   else {out.innerHTML="";render(res,out);}
 });
