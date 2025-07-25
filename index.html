@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title🚀 Pro Crypto Breakout Trade-Setup Scanner</title>
+<title>🚀 Pro Crypto Breakout Trade-Setup Scanner</title>
 <style>
  :root{--bg:#0c0c0c;--panel:#161616;--accent:#00ffae;--warn:#ffce00;
        --pass:#16c784;--fail:#ff4957;--text:#e6e6e6;--border:#333;}
@@ -15,10 +15,8 @@
  button:hover{background:#222;cursor:pointer}button{transition:.2s}
  .container{max-width:1100px;margin:auto}
  .controls,.stats,.analysis-section{margin:18px 0;text-align:center}
- .checkbox{display:inline-flex;align-items:center;margin:8px 0;font-size:1.02em;cursor:pointer}
- .checkbox input{margin-right:7px;transform:scale(1.2);cursor:pointer}
  .trade-box{background:var(--panel);border-radius:10px;padding:16px;margin:24px auto;
-   max-width:740px;box-shadow:0 0 14px #0007}
+   max-width:750px;box-shadow:0 0 14px #0007}
  .trade-box h2{color:var(--accent);margin-bottom:8px;font-size:1.32em}
  .trade-box table{width:100%;border-collapse:collapse;margin-top:10px;font-size:.92em}
  .trade-box th,.trade-box td{padding:7px 10px;border-bottom:1px solid var(--border);text-align:left}
@@ -31,8 +29,6 @@
 <body>
 <div class="container">
   <h1>🚀 Pro Crypto Breakout Trade-Setup Scanner</h1>
-
-  <!----- CONTROLS ----->
   <div class="controls">
     <label>Timeframe:</label><br>
     <select id="timeframe">
@@ -40,134 +36,92 @@
       <option value="1h">1 h</option><option value="4h">4 h</option>
       <option value="1d">1 d</option></select><br>
     <label>Account Size :</label><br>
-    <input id="accountSize" type="number" min="100" step="100" value="10000"><br>
+    <input id="accountSize" type="number" min="100" step="100" value="1000"><br>
     <label>Risk / Trade (%):</label><br>
     <input id="riskPerTrade" type="number" min="0.1" max="5" step="0.1" value="1"><br>
     <label>Min R:R:</label><br>
-    <input id="minRR" type="number" min="1" max="10" step="0.1" value="1.7"><br>
+    <input id="minRR" type="number" min="1" max="10" step="0.1" value="2"><br>
     <label>Min Target %:</label><br>
     <input id="minTargetPercent" type="number" min="2" max="20" step="0.1" value="5"><br>
     <label>Volume ×:</label><br>
-    <input id="volumeMultiplier" type="number" min="1" max="10" step="0.1" value="1.2"><br>
-
-    <label class="checkbox"><input type="checkbox" id="stochBelow40">
-      StochRSI K/D &lt; 40
-    </label><br>
-    <label class="checkbox"><input type="checkbox" id="rsiDiverg">
-      Require RSI Divergence
-    </label><br>
-    <label class="checkbox"><input type="checkbox" id="macdCross">
-      Require MACD Cross
-    </label><br>
-    <label class="checkbox"><input type="checkbox" id="obvUp">
-      Require OBV Up-trend
-    </label><br>
-
+    <input id="volumeMultiplier" type="number" min="1" max="10" step="0.1" value="1.5"><br>
     <button id="scanButton">🔍 Start Scan</button>
   </div>
-
-  <!----- STATS ----->
   <div class="stats">
     <span>Coins: <b id="coinsScanned">0</b></span> | 
     <span>Qualified: <b id="qualifiedSetups">0</b></span> | 
     <span>Avg R:R <b id="avgRR">0.0</b></span> | 
     <span>Avg Target <b id="avgTarget">0.0%</b></span>
   </div>
-
-  <!----- SINGLE-COIN ----->
   <div class="analysis-section">
     <h3>🔬 Single-Coin Check</h3>
     <input id="individualCoinInput" placeholder="BTCUSDT" style="width:260px">
     <button id="analyzeCoinButton">Analyse</button>
     <div id="individualAnalysisResult" style="margin-top:22px"></div>
   </div>
-
   <div id="scanResults" style="margin-top:34px"></div>
   <div class="log-box" id="logBox">Ready…</div>
 </div>
-
 <script>
-/*--- UTILS & CONSTANTS ---*/
 const API="https://api.binance.com";
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const avg=a=>a.reduce((s,v)=>s+v,0)/a.length||0;
 const log=m=>{const b=document.getElementById("logBox");b.textContent+=`\n${new Date().toLocaleTimeString()} ${m}`;b.scrollTop=b.scrollHeight};
-
-/*--- INDICATORS (RSI, MACD, OBV) ---*/
 const rsi=(c,p=14)=>{if(c.length<p+1)return[];let g=[],l=[];for(let i=1;i<c.length;i++){const d=c[i]-c[i-1];g.push(d>0?d:0);l.push(d<0?-d:0)};let r=[];for(let i=p-1;i<g.length;i++){const ag=avg(g.slice(i-p+1,i+1)),al=avg(l.slice(i-p+1,i+1));r.push(al===0?100:100-100/(1+ag/al))}return r};
 const stochRsi=(r,p=14)=>{if(r.length<p)return{K:[],D:[]};let raw=[];for(let i=p-1;i<r.length;i++){const sl=r.slice(i-p+1,i+1),mn=Math.min(...sl),mx=Math.max(...sl);raw.push(mx===mn?0:((r[i]-mn)/(mx-mn))*100)};let K=[],D=[];for(let i=2;i<raw.length;i++){K.push(avg(raw.slice(i-2,i+1)));if(i>=4)D.push(avg(K.slice(K.length-3)))}return{K,D}};
 const macd=(c,f=12,s=26,sg=9)=>{if(c.length<s+sg)return{m:[],sig:[]};const ema=(p,n)=>{const k=2/(n+1);let e=[avg(p.slice(0,n))];for(let i=n;i<p.length;i++)e.push(p[i]*k+e[e.length-1]*(1-k));return e};const ef=ema(c,f),es=ema(c,s);let m=[];for(let i=0;i<es.length;i++)m.push(ef[ef.length-es.length+i]-es[i]);const sig=ema(m,sg);return{m:m.slice(-sig.length),sig}};
 const obv=(c,v)=>{let o=[0];for(let i=1;i<c.length;i++)o.push(o[i-1]+(c[i]>c[i-1]?v[i]:c[i]<c[i-1]?-v[i]:0));return o};
-
-/*--- DATA FETCH ---*/
 const candles=async(s,i,l=400)=>fetch(`${API}/api/v3/klines?symbol=${s}&interval=${i}&limit=${l}`).then(r=>r.json()).then(j=>j.map(d=>({o:+d[1],h:+d[2],l:+d[3],c:+d[4],v:+d[5],t:d[0]})));
 const topCoins=async(l=120)=>fetch(`${API}/api/v3/ticker/24hr`).then(r=>r.json()).then(d=>d.filter(x=>x.symbol.endsWith("USDT")&&!/UP|DOWN/.test(x.symbol)).sort((a,b)=>b.quoteVolume-a.quoteVolume).slice(0,l));
-
-/*--- ANALYSER ---*/
 async function analyse(sym,intv,opt){
  try{
   const cs=await candles(sym,intv);if(cs.length<80)return{error:"few candles"};
-  const closes=cs.map(x=>x.c),vols=cs.map(x=>x.v),last=cs.at(-1);
-
-  /* 1-A) sustained drop (25-40 candles back) */
-  const dropWin=60,recentWin=12;
+  const closes=cs.map(x=>x.c),vols=cs.map(x=>x.v),last=cs.at(-1),
+        avgVol=avg(vols.slice(-30,-1)),rsis=rsi(closes); 
+  const dropWin=35,recentWin=12;
   const dropSeg=cs.slice(-(dropWin+recentWin),-recentWin);
   const downTrend=dropSeg.every((c,i,a)=>i===0||c.l<a[i-1].l);
-
-  /* 1-B) recovery range from last 12 highs */
   const highs=cs.slice(-recentWin).map(x=>x.h),
         resHi=Math.max(...highs),resLo=Math.min(...highs),
         brokeRange=last.c>resHi*1.002;
-
-  /* 2) volume surge */
-  const vSurge=last.v>avg(vols.slice(-30,-1))*opt.volMult;
-
-  /* 3) FVG targets + %s */
+  const vSurge=last.v>avgVol*opt.volMult;
   const fvg=[];for(let i=2;i<cs.length-2;i++){const pH=cs[i-1].h,nL=cs[i+1].l;if(pH<nL&&nL>last.c)fvg.push(nL)}
   const targets=fvg.filter(t=>(t-last.c)/last.c*100>=opt.minTargetPct)
                    .sort((a,b)=>a-b).slice(0,4)
                    .map(t=>({price:t,pct:((t-last.c)/last.c*100).toFixed(1)}));
-
-  /* 4) ATR stop & RR */
   const atr=avg(cs.slice(-15).map((c,i,a)=>i?Math.max(c.h-c.l,Math.abs(c.h-a[i-1].c),Math.abs(c.l-a[i-1].c)):0));
-  const stop=last.c-1.5*atr, bestRR=targets.length?Math.max(...targets.map(t=>(t.price-last.c)/(last.c-stop))):0;
-
-  /* 5) Indicators */
-  const rsis=rsi(closes),stoch=stochRsi(rsis),K=stoch.K,D=stoch.D;
+  const stop=last.c-2*atr, bestRR=targets.length?Math.max(...targets.map(t=>(t.price-last.c)/(last.c-stop))):0;
+  const stoch=stochRsi(rsis),K=stoch.K,D=stoch.D;
   const stochCross=K.length>1&&D.length>1&&K.at(-2)<=D.at(-2)&&K.at(-1)>D.at(-1)&&K.at(-1)<85,
-        stochBelow40=!opt.stochBelow40||(K.at(-1)<40&&D.at(-1)<40);
-
-  /* RSI divergence */
-  let rsiDiv=true;if(opt.rsiDiv){
-    const a=cs.slice(-recentWin-6,-recentWin),b=cs.slice(-recentWin);
-    const low1=a.reduce((m,c)=>c.l<m.l?c:m,a[0]).l,low2=b.reduce((m,c)=>c.l<m.l?c:m,b[0]).l;
-    const r1=rsis[rsis.length-recentWin-6+a.findIndex(c=>c.l===low1)],r2=rsis[rsis.length-recentWin+b.findIndex(c=>c.l===low2)];
-    rsiDiv=low2<low1&&r2>r1;
-  }
-  /* MACD */
-  let macdOK=true;if(opt.macd){const mc=macd(closes);macdOK=mc.m.at(-2)<mc.sig.at(-2)&&mc.m.at(-1)>mc.sig.at(-1)&&mc.m.at(-1)<0}
-  /* OBV up */
-  let obvOK=true;if(opt.obv){const o=obv(closes,vols);obvOK=o.at(-1)>o.at(-2)&&o.at(-2)>o.at(-3)}
-
-  /* criteria */
+        stochBelow40=(K.at(-1)<40&&D.at(-1)<40);
+  // Bull RSI divergence (from lower low in recent candles with higher RSI low)
+  const a=cs.slice(-recentWin-6,-recentWin),b=cs.slice(-recentWin);
+  const low1=a.reduce((m,c)=>c.l<m.l?c:m,a[0]).l,low2=b.reduce((m,c)=>c.l<m.l?c:m,b[0]).l;
+  const r1=rsis[rsis.length-recentWin-6+a.findIndex(c=>c.l===low1)],r2=rsis[rsis.length-recentWin+b.findIndex(c=>c.l===low2)];
+  const rsiDiv=low2<low1&&r2>r1;
+  // MACD bull cross
+  const mc=macd(closes),macdOK=mc.m.at(-2)<mc.sig.at(-2)&&mc.m.at(-1)>mc.sig.at(-1)&&mc.m.at(-1)<0;
+  // OBV uptrend
+  const o=obv(closes,vols),obvOK=o.at(-1)>o.at(-2)&&o.at(-2)>o.at(-3);
   const crit=[
+   {n:"Volume Surge (must)",p:vSurge,val:`${last.v.toFixed(0)} / ${avgVol.toFixed(0)}`},
    {n:"Drop-Recovery structure",p:downTrend,val:`${dropWin} candles`},
    {n:"Range Breakout",p:brokeRange,val:`${resLo.toFixed(4)}-${resHi.toFixed(4)}`},
-   {n:"Volume Surge",p:vSurge,val:last.v.toFixed(3)},
-   {n:"Bullish Stoch Cross",p:stochCross&&stochBelow40,val:`K ${K.at(-1)?.toFixed(1)}`},
+   {n:"Bullish Stoch Cross <85 K&D<40",p:stochCross&&stochBelow40,val:`K ${K.at(-1)?.toFixed(1)||"--"} D ${D.at(-1)?.toFixed(1)||"--"}`},
    {n:`R:R ≥ ${opt.minRR}`,p:bestRR>=opt.minRR,val:bestRR.toFixed(2)},
-   {n:"RSI Divergence",p:!opt.rsiDiv||rsiDiv,val:""},
-   {n:"MACD Cross",p:!opt.macd||macdOK,val:""},
-   {n:"OBV Up-trend",p:!opt.obv||obvOK,val:""}
+   {n:"RSI Divergence",p:rsiDiv,val:r1===undefined||r2===undefined?"":"Lows RSI "+r1.toFixed(1)+"/"+r2.toFixed(1)},
+   {n:"MACD Bull Cross",p:macdOK,val:(mc.m.at(-1)||"--").toFixed(3)},
+   {n:"OBV Uptrend",p:obvOK,val:""}
   ];
-  const passed=crit.filter(c=>c.p).length, need=4+['rsiDiv','macd','obv'].filter(k=>opt[k]).length;
-  return{sym,qual:passed>=need,crit,passed,need,
-         price:last.c,resHi,resLo,stop:stop.toFixed(3),rr:bestRR.toFixed(2),
-         vol:last.v,targets};
- }catch(e){return{error:e.message}}
+  const critNotVol=crit.slice(1), passed=1+critNotVol.filter(c=>c.p).length;
+  const qual = vSurge && passed>=4;
+  return{
+    sym,qual,crit,passed,need:4,
+    price:last.c,resHi,resLo,stop:stop.toFixed(3),rr:bestRR.toFixed(2),
+    vol:last.v,avgVol,rsi:rsis.at(-1)??null,targets
+  };
+}catch(e){return{error:e.message}}
 }
-
-/*--- RENDER ---*/
 const row=c=>`<tr><td>${c.n}</td><td class="${c.p?'pass':'fail'}">${c.p?'✅':'❌'} ${c.val}</td></tr>`;
 function render(s,w){
   const tgt=s.targets.map(t=>`${t.price.toFixed(3)} (${t.pct}%)`).join(" → ")||"–";
@@ -179,26 +133,22 @@ function render(s,w){
      <tr><td>Stop</td><td>${s.stop}</td></tr>
      <tr><td>Targets</td><td>${tgt}</td></tr>
      <tr><td>R:R</td><td>${s.rr}</td></tr>
-     <tr><td>Volume</td><td>${s.vol.toFixed(0)}</td></tr></table>
+     <tr><td>Volume</td><td>${s.vol.toFixed(0)} / ${s.avgVol?.toFixed(0)??"--"}</td></tr>
+     <tr><td>RSI</td><td>${s.rsi?.toFixed(2)??"--"}</td></tr>
+   </table>
    <table><thead><tr><th>Criteria</th><th>Status</th></tr></thead>
      <tbody>${s.crit.map(row).join("")}</tbody></table>
    <p style="text-align:center;font-weight:bold;color:${s.qual?'var(--pass)':'var(--fail)'}">
-     ${s.qual?`QUALIFIED (${s.passed}/${s.need})`:`NOT QUALIFIED (${s.passed}/${s.need})`}
-   </p></div>`;
+     ${s.qual?`QUALIFIED (${s.passed}/8 with volume surge mandatory)`:`NOT QUALIFIED (${s.passed}/8, volume surge mandatory)`}</p></div>`;
 }
-
-/*--- SCAN LOOP ---*/
 async function scan(){
  const opt={
   minRR:+document.getElementById("minRR").value,
   minTargetPct:+document.getElementById("minTargetPercent").value,
   volMult:+document.getElementById("volumeMultiplier").value,
-  stochBelow40:document.getElementById("stochBelow40").checked,
-  rsiDiv:document.getElementById("rsiDiverg").checked,
-  macd:document.getElementById("macdCross").checked,
-  obv:document.getElementById("obvUp").checked
- },tf=document.getElementById("timeframe").value,
- wrap=document.getElementById("scanResults");
+ };
+ const tf=document.getElementById("timeframe").value,
+       wrap=document.getElementById("scanResults");
  wrap.innerHTML="";document.getElementById("coinsScanned").textContent=0;
  document.getElementById("qualifiedSetups").textContent=0;
  log("Starting scan…");document.getElementById("scanButton").disabled=true;
@@ -213,9 +163,9 @@ async function scan(){
  if(!setups.length)wrap.innerHTML="<p style='color:var(--fail);text-align:center;font-weight:bold'>No qualified breakouts.</p>";
  else{
   setups.sort((a,b)=>{
-    const aVol=a.crit[2].p,bVol=b.crit[2].p,
-          ag=a.passed===a.need?0:(aVol&&a.passed>=4?1:2),
-          bg=b.passed===b.need?0:(bVol&&b.passed>=4?1:2);
+    const aVol=a.crit[0].p,bVol=b.crit[0].p,
+          ag=aVol&&a.passed>=4?0:1,
+          bg=bVol&&b.passed>=4?0:1;
     if(ag!==bg)return ag-bg;
     if(a.passed!==b.passed)return b.passed-a.passed;
     return parseFloat(b.rr)-parseFloat(a.rr);
@@ -227,8 +177,6 @@ async function scan(){
  }
  document.getElementById("scanButton").disabled=false;
 }
-
-/*--- EVENTS ---*/
 document.getElementById("scanButton").onclick=scan;
 document.getElementById("analyzeCoinButton").onclick=async()=>{
  const symIn=document.getElementById("individualCoinInput").value.trim().toUpperCase();
@@ -237,11 +185,7 @@ document.getElementById("analyzeCoinButton").onclick=async()=>{
  const opt={
   minRR:+document.getElementById("minRR").value,
   minTargetPct:+document.getElementById("minTargetPercent").value,
-  volMult:+document.getElementById("volumeMultiplier").value,
-  stochBelow40:document.getElementById("stochBelow40").checked,
-  rsiDiv:document.getElementById("rsiDiverg").checked,
-  macd:document.getElementById("macdCross").checked,
-  obv:document.getElementById("obvUp").checked
+  volMult:+document.getElementById("volumeMultiplier").value
  };
  const out=document.getElementById("individualAnalysisResult");
  out.innerHTML="<p>Analysing…</p>";
