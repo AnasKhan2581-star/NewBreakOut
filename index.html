@@ -110,7 +110,7 @@ async function analyse(sym,intv,opt){
   const closes=cs.map(x=>x.c),vols=cs.map(x=>x.v),last=cs.at(-1);
 
   /* 1-A) sustained drop (25-40 candles back) */
-  const dropWin=35,recentWin=12;
+  const dropWin=60,recentWin=12;
   const dropSeg=cs.slice(-(dropWin+recentWin),-recentWin);
   const downTrend=dropSeg.every((c,i,a)=>i===0||c.l<a[i-1].l);
 
