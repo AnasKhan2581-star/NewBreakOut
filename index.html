@@ -36,6 +36,18 @@
     background:#111;border:1px solid #0a0;border-radius:8px;color:#0f0;
     font-family:monospace;padding:10px;max-height:190px;overflow-y:auto
   }
+  .checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    margin: 10px 0;
+    font-size: 1.05em;
+    cursor: pointer;
+  }
+  .checkbox-label input {
+    margin-right: 8px;
+    transform: scale(1.2);
+    cursor: pointer;
+  }
 </style>
 </head>
 <body>
@@ -53,7 +65,7 @@
     </select><br/>
 
     <label for="accountSize">Account Size ($):</label><br/>
-    <input id="accountSize" type="number" min="100" step="100" value="100"/><br/>
+    <input id="accountSize" type="number" min="100" step="100" value="1000"/><br/>
 
     <label for="riskPerTrade">Risk per Trade (%):</label><br/>
     <input id="riskPerTrade" type="number" min="0.1" max="5" step="0.1" value="1"/><br/>
@@ -66,6 +78,11 @@
 
     <label for="volumeMultiplier">Volume Multiplier ×:</label><br/>
     <input id="volumeMultiplier" type="number" min="1" max="10" step="0.1" value="1.8"/><br/>
+
+    <label class="checkbox-label" title="Enable to require StochRSI %K and %D both below 40 for bullish confirmation">
+      <input type="checkbox" id="stochBelow40" />
+      Require StochRSI K/D below 40 (optional)
+    </label><br/>
 
     <button id="scanButton">🔍 Start Scan</button>
   </div>
@@ -206,7 +223,8 @@ async function candles(sym,intvl,limit=300){
 --------------------------------------------------------------------*/
 async function analyse(sym,intvl,settings){
   const {
-    accountSize=1000,riskPct=1,minRR=2,minTargetPct=5,volMult=1.8
+    accountSize=1000,riskPct=1,minRR=2,minTargetPct=5,volMult=1.8,
+    requireStochBelow40=false
   }=settings;
   try{
     const c=await candles(sym,intvl,300);
@@ -229,6 +247,14 @@ async function analyse(sym,intvl,settings){
     /* StochRSI bullish cross (<85)                                 */
     const stochBull=bullishStochCross(K,D);
 
+    /* Optional: Require both K and D below 40 if checkbox enabled */
+    let stochBelow40Pass = true;
+    if(requireStochBelow40){
+      const kVal = K.at(-1) ?? 100;
+      const dVal = D.at(-1) ?? 100;
+      stochBelow40Pass = (kVal < 40 && dVal < 40);
+    }
+
     /* Proximity to resistance within 1.5 %                         */
     const proxPct=Math.abs(last.close-resist)/resist*100;
     const proxPass=proxPct<=1.5;
@@ -245,15 +271,27 @@ async function analyse(sym,intvl,settings){
     const rrPass=bestRR>=minRR;
 
     /* Criteria tally                                               */
-    const criteria=[
+    let criteria=[
       {name:"Volume Surge",         pass:volSurge,  val:`${last.volume.toFixed(0)} / ${avgVol.toFixed(0)}`},
       {name:"Near Resistance",      pass:proxPass,  val:`${proxPct.toFixed(2)} %`},
       {name:"Bullish StochRSI <85", pass:stochBull, val:`K:${K.at(-1)?.toFixed(1)||"--"} D:${D.at(-1)?.toFixed(1)||"--"}`},
       {name:`≥${minTargetPct}% Targets`,pass:targets.length>0,val:targets.length},
       {name:`R:R ≥ ${minRR}`,       pass:rrPass,    val:bestRR.toFixed(2)}
     ];
+
+    // Add optional Stoch below 40 criteria if enabled
+    if(requireStochBelow40){
+      criteria.push({name:"StochRSI K/D < 40 (optional)", pass:stochBelow40Pass, val:`K:${K.at(-1)?.toFixed(1)||"--"} D:${D.at(-1)?.toFixed(1)||"--"}`});
+    }
+
+    // Passed count based on criteria considered
     const passed=criteria.filter(x=>x.pass).length;
-    const qualified=passed>=4;
+
+    // Qualification requires:
+    // If optional stoch below40 enabled, require passing at least 4 of first 5 plus the optional (so >=5 total),
+    // else passing at least 4 of 5.
+    const minPassRequired = requireStochBelow40 ? 5 : 4;
+    const qualified = passed >= minPassRequired;
 
     return{
       symbol:sym,qualified,criteria,passed,
@@ -292,7 +330,7 @@ function render(setup,wrap){
       </table>
       <table><thead><tr><th>Criteria</th><th>Status</th></tr></thead><tbody>${crit}</tbody></table>
       <p style="text-align:center;font-weight:bold;color:${setup.qualified?"var(--pass)":"var(--fail)"}">
-        ${setup.qualified?`QUALIFIED (${setup.passed}/5)`: `NOT QUALIFIED (${setup.passed}/5)`}
+        ${setup.qualified?`QUALIFIED (${setup.passed}/${setup.criteria.length})`: `NOT QUALIFIED (${setup.passed}/${setup.criteria.length})`}
       </p>
     </div>`;
 }
@@ -302,12 +340,14 @@ function render(setup,wrap){
 --------------------------------------------------------------------*/
 async function scan(){
   const tf=document.getElementById("timeframe").value;
+  const requireStochBelow40 = document.getElementById("stochBelow40").checked;
   const settings={
     accountSize:+document.getElementById("accountSize").value||1000,
     riskPct:+document.getElementById("riskPerTrade").value||1,
     minRR:+document.getElementById("minRR").value||2,
     minTargetPct:+document.getElementById("minTargetPercent").value||5,
-    volMult:+document.getElementById("volumeMultiplier").value||1.8
+    volMult:+document.getElementById("volumeMultiplier").value||1.8,
+    requireStochBelow40
   };
   const btn=document.getElementById("scanButton");
   const wrap=document.getElementById("scanResults");
@@ -329,17 +369,21 @@ async function scan(){
     wrap.innerHTML="<p style='color:var(--fail);text-align:center;font-weight:bold'>No qualified breakouts.</p>";
   }else{
     /* ----------  SORTING LOGIC  ----------
-       1) coins passing all 5 criteria
+       1) coins passing all criteria
        2) coins passing volume criteria + ≥3 others (passed ≥4 AND criteria[0].pass)
        3) the rest
     -------------------------------------- */
     setups.sort((a,b)=>{
       const aVol=a.criteria[0].pass, bVol=b.criteria[0].pass;
-      const aGroup=(a.passed===5)?0:(aVol && a.passed>=4)?1:2;
-      const bGroup=(b.passed===5)?0:(bVol && b.passed>=4)?1:2;
-      if(aGroup!==bGroup) return aGroup-bGroup;
-      if(a.passed!==b.passed) return b.passed-a.passed;
-      return parseFloat(b.riskReward)-parseFloat(a.riskReward);
+      const aFullPass = a.passed === a.criteria.length;
+      const bFullPass = b.passed === b.criteria.length;
+
+      const aGroup = aFullPass ? 0 : (aVol && a.passed >= 4 ? 1 : 2);
+      const bGroup = bFullPass ? 0 : (bVol && b.passed >= 4 ? 1 : 2);
+
+      if(aGroup !== bGroup) return aGroup - bGroup;
+      if(a.passed !== b.passed) return b.passed - a.passed;
+      return parseFloat(b.riskReward) - parseFloat(a.riskReward);
     });
 
     const avgRR=avg(setups.map(x=>+x.riskReward));
@@ -361,6 +405,8 @@ document.getElementById("analyzeCoinButton").addEventListener("click",async()=>{
   const symInp=document.getElementById("individualCoinInput");
   const out=document.getElementById("individualAnalysisResult");
   const tf=document.getElementById("timeframe").value;
+  const requireStochBelow40 = document.getElementById("stochBelow40").checked;
+
   let sym=symInp.value.trim().toUpperCase();
   if(!sym){
     out.innerHTML="<p style='color:var(--fail)'>Enter symbol</p>";
@@ -371,7 +417,8 @@ document.getElementById("analyzeCoinButton").addEventListener("click",async()=>{
   const res=await analyse(sym,tf,{
     minRR:+document.getElementById("minRR").value,
     minTargetPct:+document.getElementById("minTargetPercent").value,
-    volMult:+document.getElementById("volumeMultiplier").value
+    volMult:+document.getElementById("volumeMultiplier").value,
+    requireStochBelow40
   });
   if(res.error) out.innerHTML=`<p style='color:var(--fail)'>${res.error}</p>`;
   else {out.innerHTML="";render(res,out);}
