@@ -75,7 +75,7 @@ const candles=async(s,i,l=65)=>fetch(`${API}/api/v3/klines?symbol=${s}&interval=
 const topCoins=async(l=150)=>fetch(`${API}/api/v3/ticker/24hr`).then(r=>r.json()).then(d=>d.filter(x=>x.symbol.endsWith("USDT")&&!/UP|DOWN/.test(x.symbol)).sort((a,b)=>b.quoteVolume-a.quoteVolume).slice(0,l));
 async function analyse(sym,intv,opt){
  try{
-  const cs=await candles(sym,intv);if(cs.length<80)return{error:"few candles"};
+  const cs=await candles(sym,intv);if(cs.length<10)return{error:"few candles"};
   const closes=cs.map(x=>x.c),vols=cs.map(x=>x.v),last=cs.at(-1),
         avgVol=avg(vols.slice(-30,-1)),rsis=rsi(closes); 
   const dropWin=35,recentWin=12;
