@@ -71,7 +71,7 @@ const rsi=(c,p=14)=>{if(c.length<p+1)return[];let g=[],l=[];for(let i=1;i<c.leng
 const stochRsi=(r,p=14)=>{if(r.length<p)return{K:[],D:[]};let raw=[];for(let i=p-1;i<r.length;i++){const sl=r.slice(i-p+1,i+1),mn=Math.min(...sl),mx=Math.max(...sl);raw.push(mx===mn?0:((r[i]-mn)/(mx-mn))*100)};let K=[],D=[];for(let i=2;i<raw.length;i++){K.push(avg(raw.slice(i-2,i+1)));if(i>=4)D.push(avg(K.slice(K.length-3)))}return{K,D}};
 const macd=(c,f=12,s=26,sg=9)=>{if(c.length<s+sg)return{m:[],sig:[]};const ema=(p,n)=>{const k=2/(n+1);let e=[avg(p.slice(0,n))];for(let i=n;i<p.length;i++)e.push(p[i]*k+e[e.length-1]*(1-k));return e};const ef=ema(c,f),es=ema(c,s);let m=[];for(let i=0;i<es.length;i++)m.push(ef[ef.length-es.length+i]-es[i]);const sig=ema(m,sg);return{m:m.slice(-sig.length),sig}};
 const obv=(c,v)=>{let o=[0];for(let i=1;i<c.length;i++)o.push(o[i-1]+(c[i]>c[i-1]?v[i]:c[i]<c[i-1]?-v[i]:0));return o};
-const candles=async(s,i,l=200)=>fetch(`${API}/api/v3/klines?symbol=${s}&interval=${i}&limit=${l}`).then(r=>r.json()).then(j=>j.map(d=>({o:+d[1],h:+d[2],l:+d[3],c:+d[4],v:+d[5],t:d[0]})));
+const candles=async(s,i,l=400)=>fetch(`${API}/api/v3/klines?symbol=${s}&interval=${i}&limit=${l}`).then(r=>r.json()).then(j=>j.map(d=>({o:+d[1],h:+d[2],l:+d[3],c:+d[4],v:+d[5],t:d[0]})));
 const topCoins=async(l=150)=>fetch(`${API}/api/v3/ticker/24hr`).then(r=>r.json()).then(d=>d.filter(x=>x.symbol.endsWith("USDT")&&!/UP|DOWN/.test(x.symbol)).sort((a,b)=>b.quoteVolume-a.quoteVolume).slice(0,l));
 async function analyse(sym,intv,opt){
  try{
