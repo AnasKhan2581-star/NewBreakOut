@@ -5,36 +5,41 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>🚀 Pro Crypto Breakout Trade-Setup Scanner</title>
 <style>
- :root{--bg:#0c0c0c;--panel:#161616;--accent:#00ffae;--warn:#ffce00;
-       --pass:#16c784;--fail:#ff4957;--text:#e6e6e6;--border:#333;}
- *{box-sizing:border-box;margin:0;padding:0;font-family:Arial,Helvetica,sans-serif}
- body{background:var(--bg);color:var(--text);padding:12px}
- h1,h3{text-align:center}h1{color:var(--accent);font-size:5vw;margin:15px 0}
- select,input,button{background:var(--panel);color:var(--text);border:1px solid var(--border);
-   padding:10px;border-radius:8px;font-size:1.05em;width:225px}
- button:hover{background:#222;cursor:pointer}button{transition:.2s}
- .container{max-width:1100px;margin:auto}
- .controls,.stats,.analysis-section{margin:18px 0;text-align:center}
- .trade-box{background:var(--panel);border-radius:10px;padding:16px;margin:24px auto;
-   max-width:750px;box-shadow:0 0 14px #0007}
- .trade-box h2{color:var(--accent);margin-bottom:8px;font-size:1.32em}
- .trade-box table{width:100%;border-collapse:collapse;margin-top:10px;font-size:.92em}
- .trade-box th,.trade-box td{padding:7px 10px;border-bottom:1px solid var(--border);text-align:left}
- .trade-box th{color:var(--warn)}
- .pass{color:var(--pass);font-weight:700}.fail{color:var(--fail);font-weight:700}
- .log-box{background:#111;border:1px solid #0a0;border-radius:8px;color:#0f0;font-family:monospace;
-          padding:10px;max-height:190px;overflow-y:auto}
+  :root{--bg:#0c0c0c;--panel:#161616;--accent:#00ffae;--warn:#ffce00;
+        --pass:#16c784;--fail:#ff4957;--text:#e6e6e6;--border:#333;}
+  *{box-sizing:border-box;margin:0;padding:0;font-family:Arial,Helvetica,sans-serif}
+  body{background:var(--bg);color:var(--text);padding:12px}
+  h1,h3{text-align:center}h1{color:var(--accent);font-size:5vw;margin:15px 0}
+  select,input,button{background:var(--panel);color:var(--text);border:1px solid var(--border);
+    padding:10px;border-radius:8px;font-size:1.05em;width:225px}
+  button:hover{background:#222;cursor:pointer}button{transition:.2s}
+  .container{max-width:1100px;margin:auto}
+  .controls,.stats,.analysis-section{margin:18px 0;text-align:center}
+  .trade-box{background:var(--panel);border-radius:10px;padding:16px;margin:24px auto;
+    max-width:750px;box-shadow:0 0 14px #0007}
+  .trade-box h2{color:var(--accent);margin-bottom:8px;font-size:1.32em}
+  .trade-box table{width:100%;border-collapse:collapse;margin-top:10px;font-size:.92em}
+  .trade-box th,.trade-box td{padding:7px 10px;border-bottom:1px solid var(--border);text-align:left}
+  .trade-box th{color:var(--warn)}
+  .pass{color:var(--pass);font-weight:700}.fail{color:var(--fail);font-weight:700}
+  .log-box{background:#111;border:1px solid #0a0;border-radius:8px;color:#0f0;font-family:monospace;
+           padding:10px;max-height:190px;overflow-y:auto}
 </style>
 </head>
 <body>
 <div class="container">
   <h1>🚀 Pro Crypto Breakout Trade-Setup Scanner</h1>
+
+  <!-- ─────────────── USER CONTROLS ─────────────── -->
   <div class="controls">
     <label>Timeframe:</label><br>
     <select id="timeframe">
-      <option value="15m" selected>15 m</option><option value="30m">30 m</option>
-      <option value="1h">1 h</option><option value="4h">4 h</option>
-      <option value="1d">1 d</option></select><br>
+      <option value="15m" selected>15 m</option>
+      <option value="30m">30 m</option>
+      <option value="1h">1 h</option>
+      <option value="4h">4 h</option>
+      <option value="1d">1 d</option>
+    </select><br>
     <label>Account Size :</label><br>
     <input id="accountSize" type="number" min="100" step="100" value="1000"><br>
     <label>Risk / Trade (%):</label><br>
@@ -43,154 +48,207 @@
     <input id="minRR" type="number" min="1" max="10" step="0.1" value="2"><br>
     <label>Min Target %:</label><br>
     <input id="minTargetPercent" type="number" min="2" max="20" step="0.1" value="5"><br>
-    <label>Volume ×:</label><br>
-    <input id="volumeMultiplier" type="number" min="1" max="10" step="0.1" value="1.5"><br>
     <button id="scanButton">🔍 Start Scan</button>
   </div>
+
+  <!-- ─────────────── SUMMARY BAR ─────────────── -->
   <div class="stats">
     <span>Coins: <b id="coinsScanned">0</b></span> | 
     <span>Qualified: <b id="qualifiedSetups">0</b></span> | 
     <span>Avg R:R <b id="avgRR">0.0</b></span> | 
     <span>Avg Target <b id="avgTarget">0.0%</b></span>
   </div>
+
+  <!-- ─────────────── SINGLE-COIN ANALYSIS ─────────────── -->
   <div class="analysis-section">
     <h3>🔬 Single-Coin Check</h3>
     <input id="individualCoinInput" placeholder="BTCUSDT" style="width:260px">
     <button id="analyzeCoinButton">Analyse</button>
     <div id="individualAnalysisResult" style="margin-top:22px"></div>
   </div>
+
+  <!-- ─────────────── RESULTS & LOG ─────────────── -->
   <div id="scanResults" style="margin-top:34px"></div>
   <div class="log-box" id="logBox">Ready…</div>
 </div>
+
+<!-- ──────────────────  SCRIPT  ────────────────── -->
 <script>
-const API="https://api.binance.com";
-const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-const avg=a=>a.reduce((s,v)=>s+v,0)/a.length||0;
-const log=m=>{const b=document.getElementById("logBox");b.textContent+=`\n${new Date().toLocaleTimeString()} ${m}`;b.scrollTop=b.scrollHeight};
-const rsi=(c,p=14)=>{if(c.length<p+1)return[];let g=[],l=[];for(let i=1;i<c.length;i++){const d=c[i]-c[i-1];g.push(d>0?d:0);l.push(d<0?-d:0)};let r=[];for(let i=p-1;i<g.length;i++){const ag=avg(g.slice(i-p+1,i+1)),al=avg(l.slice(i-p+1,i+1));r.push(al===0?100:100-100/(1+ag/al))}return r};
-const stochRsi=(r,p=14)=>{if(r.length<p)return{K:[],D:[]};let raw=[];for(let i=p-1;i<r.length;i++){const sl=r.slice(i-p+1,i+1),mn=Math.min(...sl),mx=Math.max(...sl);raw.push(mx===mn?0:((r[i]-mn)/(mx-mn))*100)};let K=[],D=[];for(let i=2;i<raw.length;i++){K.push(avg(raw.slice(i-2,i+1)));if(i>=4)D.push(avg(K.slice(K.length-3)))}return{K,D}};
-const macd=(c,f=12,s=26,sg=9)=>{if(c.length<s+sg)return{m:[],sig:[]};const ema=(p,n)=>{const k=2/(n+1);let e=[avg(p.slice(0,n))];for(let i=n;i<p.length;i++)e.push(p[i]*k+e[e.length-1]*(1-k));return e};const ef=ema(c,f),es=ema(c,s);let m=[];for(let i=0;i<es.length;i++)m.push(ef[ef.length-es.length+i]-es[i]);const sig=ema(m,sg);return{m:m.slice(-sig.length),sig}};
-const obv=(c,v)=>{let o=[0];for(let i=1;i<c.length;i++)o.push(o[i-1]+(c[i]>c[i-1]?v[i]:c[i]<c[i-1]?-v[i]:0));return o};
-const candles=async(s,i,l=300)=>fetch(`${API}/api/v3/klines?symbol=${s}&interval=${i}&limit=${l}`).then(r=>r.json()).then(j=>j.map(d=>({o:+d[1],h:+d[2],l:+d[3],c:+d[4],v:+d[5],t:d[0]})));
-const topCoins=async(l=150)=>fetch(`${API}/api/v3/ticker/24hr`).then(r=>r.json()).then(d=>d.filter(x=>x.symbol.endsWith("USDT")&&!/UP|DOWN/.test(x.symbol)).sort((a,b)=>b.quoteVolume-a.quoteVolume).slice(0,l));
-async function analyse(sym,intv,opt){
- try{
-  const cs=await candles(sym,intv);if(cs.length<10)return{error:"few candles"};
-  const closes=cs.map(x=>x.c),vols=cs.map(x=>x.v),last=cs.at(-1),
-        avgVol=avg(vols.slice(-25,-1)),rsis=rsi(closes); 
-  const dropWin=35,recentWin=12;
-  const dropSeg=cs.slice(-(dropWin+recentWin),-recentWin);
-  const downTrend=dropSeg.every((c,i,a)=>i===0||c.l<a[i-1].l);
-  const highs=cs.slice(-recentWin).map(x=>x.h),
-        resHi=Math.max(...highs),resLo=Math.min(...highs),
-        brokeRange=last.c>resHi*1.002;
-  const vSurge=last.v>avgVol*opt.volMult;
-  const fvg=[];for(let i=2;i<cs.length-2;i++){const pH=cs[i-1].h,nL=cs[i+1].l;if(pH<nL&&nL>last.c)fvg.push(nL)}
-  const targets=fvg.filter(t=>(t-last.c)/last.c*100>=opt.minTargetPct)
-                   .sort((a,b)=>a-b).slice(0,4)
-                   .map(t=>({price:t,pct:((t-last.c)/last.c*100).toFixed(1)}));
-  const atr=avg(cs.slice(-15).map((c,i,a)=>i?Math.max(c.h-c.l,Math.abs(c.h-a[i-1].c),Math.abs(c.l-a[i-1].c)):0));
-  const stop=last.c-2*atr, bestRR=targets.length?Math.max(...targets.map(t=>(t.price-last.c)/(last.c-stop))):0;
-  const stoch=stochRsi(rsis),K=stoch.K,D=stoch.D;
-  const stochCross=K.length>1&&D.length>1&&K.at(-2)<=D.at(-2)&&K.at(-1)>D.at(-1)&&K.at(-1)<85,
-        stochBelow40=(K.at(-1)<40&&D.at(-1)<40);
-  // Bull RSI divergence (from lower low in recent candles with higher RSI low)
-  const a=cs.slice(-recentWin-6,-recentWin),b=cs.slice(-recentWin);
-  const low1=a.reduce((m,c)=>c.l<m.l?c:m,a[0]).l,low2=b.reduce((m,c)=>c.l<m.l?c:m,b[0]).l;
-  const r1=rsis[rsis.length-recentWin-6+a.findIndex(c=>c.l===low1)],r2=rsis[rsis.length-recentWin+b.findIndex(c=>c.l===low2)];
-  const rsiDiv=low2<low1&&r2>r1;
-  // MACD bull cross
-  const mc=macd(closes),macdOK=mc.m.at(-2)<mc.sig.at(-2)&&mc.m.at(-1)>mc.sig.at(-1)&&mc.m.at(-1)<0;
-  // OBV uptrend
-  const o=obv(closes,vols),obvOK=o.at(-1)>o.at(-2)&&o.at(-2)>o.at(-3);
-  const crit=[
-   {n:"Volume Surge (must)",p:vSurge,val:`${last.v.toFixed(0)} / ${avgVol.toFixed(0)}`},
-   {n:"Drop-Recovery structure",p:downTrend,val:`${dropWin} candles`},
-   {n:"Range Breakout",p:brokeRange,val:`${resLo.toFixed(4)}-${resHi.toFixed(4)}`},
-   {n:"Bullish Stoch Cross <85 K&D<40",p:stochCross&&stochBelow40,val:`K ${K.at(-1)?.toFixed(1)||"--"} D ${D.at(-1)?.toFixed(1)||"--"}`},
-   {n:`R:R ≥ ${opt.minRR}`,p:bestRR>=opt.minRR,val:bestRR.toFixed(2)},
-   {n:"RSI Divergence",p:rsiDiv,val:r1===undefined||r2===undefined?"":"Lows RSI "+r1.toFixed(1)+"/"+r2.toFixed(1)},
-   {n:"MACD Bull Cross",p:macdOK,val:(mc.m.at(-1)||"--").toFixed(3)},
-   {n:"OBV Uptrend",p:obvOK,val:""}
-  ];
-  const critNotVol=crit.slice(1), passed=1+critNotVol.filter(c=>c.p).length;
-  const qual = vSurge && passed>=4;
-  return{
-    sym,qual,crit,passed,need:4,
-    price:last.c,resHi,resLo,stop:stop.toFixed(3),rr:bestRR.toFixed(2),
-    vol:last.v,avgVol,rsi:rsis.at(-1)??null,targets
-  };
-}catch(e){return{error:e.message}}
+/* ========== Helpers ========== */
+const API   = "https://api.binance.com";
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const avg   = arr => arr.reduce((s,v)=>s+v,0)/arr.length || 0;
+const log   = m => {const b=document.getElementById("logBox");
+  b.textContent+=`\n${new Date().toLocaleTimeString()} ${m}\n`;b.scrollTop=b.scrollHeight;};
+
+/* ========== Data Fetchers ========== */
+const candles = async (sym,intvl,lim=300)=>
+  fetch(`${API}/api/v3/klines?symbol=${sym}&interval=${intvl}&limit=${lim}`)
+    .then(r=>r.json())
+    .then(d=>d.map(c=>({t:+c[0],o:+c[1],h:+c[2],l:+c[3],c:+c[4],v:+c[5]})));
+
+const topCoins = async (lim=150)=>
+  fetch(`${API}/api/v3/ticker/24hr`).then(r=>r.json()).then(l=>
+    l.filter(x=>x.symbol.endsWith("USDT")&&!/UP|DOWN/.test(x.symbol))
+     .sort((a,b)=>b.quoteVolume-a.quoteVolume).slice(0,lim));
+
+/* ========== StochRSI(14) & MA(3) ========== */
+function stochRsi14(closes,rsiP=14,stoLen=14,maLen=3){
+  if(closes.length<rsiP+stoLen+maLen)return{stochRsi:[],maStochRsi:[]};
+  const g=[],lo=[];for(let i=1;i<closes.length;i++){
+    const d=closes[i]-closes[i-1];g.push(Math.max(d,0));lo.push(Math.max(-d,0));}
+  const rsis=[],w=rsiP;
+  let aG=avg(g.slice(0,w)),aL=avg(lo.slice(0,w));
+  rsis.push(100-100/(1+(aL===0?100:aG/aL)));
+  for(let i=w;i<g.length;i++){
+    aG=(aG*(w-1)+g[i])/w;aL=(aL*(w-1)+lo[i])/w;
+    rsis.push(100-100/(1+(aL===0?100:aG/aL)));}
+
+  const sr=[];for(let i=stoLen-1;i<rsis.length;i++){
+    const win=rsis.slice(i-stoLen+1,i+1),mn=Math.min(...win),mx=Math.max(...win);
+    sr.push(mx===mn?0:((rsis[i]-mn)/(mx-mn))*100);}
+  const ma=[];for(let i=maLen-1;i<sr.length;i++)ma.push(avg(sr.slice(i-maLen+1,i+1)));
+  return{stochRsi:sr,maStochRsi:ma};
 }
-const row=c=>`<tr><td>${c.n}</td><td class="${c.p?'pass':'fail'}">${c.p?'✅':'❌'} ${c.val}</td></tr>`;
-function render(s,w){
-  const tgt=s.targets.map(t=>`${t.price.toFixed(3)} (${t.pct}%)`).join(" → ")||"–";
-  w.innerHTML+=`<div class="trade-box">
-   <h2>${s.qual?'✅':'❌'} <b>${s.sym}</b> ${s.qual?'Setup':'– Not Qualified'}</h2>
-   <table><tr><th>Key</th><th>Value</th></tr>
-     <tr><td>Entry</td><td>${s.price.toFixed(3)}</td></tr>
-     <tr><td>Res Range</td><td>${s.resLo.toFixed(3)}-${s.resHi.toFixed(3)}</td></tr>
-     <tr><td>Stop</td><td>${s.stop}</td></tr>
-     <tr><td>Targets</td><td>${tgt}</td></tr>
-     <tr><td>R:R</td><td>${s.rr}</td></tr>
-     <tr><td>Volume</td><td>${s.vol.toFixed(0)} / ${s.avgVol?.toFixed(0)??"--"}</td></tr>
-     <tr><td>RSI</td><td>${s.rsi?.toFixed(2)??"--"}</td></tr>
-   </table>
-   <table><thead><tr><th>Criteria</th><th>Status</th></tr></thead>
-     <tbody>${s.crit.map(row).join("")}</tbody></table>
-   <p style="text-align:center;font-weight:bold;color:${s.qual?'var(--pass)':'var(--fail)'}">
-     ${s.qual?`QUALIFIED (${s.passed}/8 with volume surge mandatory)`:`NOT QUALIFIED (${s.passed}/8, volume surge mandatory)`}</p></div>`;
-}
-async function scan(){
- const opt={
-  minRR:+document.getElementById("minRR").value,
-  minTargetPct:+document.getElementById("minTargetPercent").value,
-  volMult:+document.getElementById("volumeMultiplier").value,
- };
- const tf=document.getElementById("timeframe").value,
-       wrap=document.getElementById("scanResults");
- wrap.innerHTML="";document.getElementById("coinsScanned").textContent=0;
- document.getElementById("qualifiedSetups").textContent=0;
- log("Starting scan…");document.getElementById("scanButton").disabled=true;
- const coins=await topCoins();let setups=[],i=0;
- for(const c of coins){
-  document.getElementById("coinsScanned").textContent=++i;
-  log(`Analysing ${c.symbol} (${i}/${coins.length})`);
-  const res=await analyse(c.symbol,tf,opt);
-  if(!res.error&&res.qual){setups.push(res);document.getElementById("qualifiedSetups").textContent=setups.length}
-  if(i%12===0)await sleep(900);
- }
- if(!setups.length)wrap.innerHTML="<p style='color:var(--fail);text-align:center;font-weight:bold'>No qualified breakouts.</p>";
- else{
-  setups.sort((a,b)=>{
-    const aVol=a.crit[0].p,bVol=b.crit[0].p,
-          ag=aVol&&a.passed>=4?0:1,
-          bg=bVol&&b.passed>=4?0:1;
-    if(ag!==bg)return ag-bg;
-    if(a.passed!==b.passed)return b.passed-a.passed;
-    return parseFloat(b.rr)-parseFloat(a.rr);
+
+/* ========== Resistance-Range Finder ========== */
+function findResistanceRange(candles,look=24){
+  const highs=candles.slice(-look).map(c=>c.h);
+  const step=candles.at(-1).c*0.003;               // ≈0.3 % bucket width
+  const buckets={};
+  highs.forEach(h=>{
+    const key=Math.round(h/step)*step;
+    buckets[key]=(buckets[key]||0)+1;
   });
-  document.getElementById("avgRR").textContent=avg(setups.map(x=>+x.rr)).toFixed(2);
-  document.getElementById("avgTarget").textContent=
-      (avg(setups.map(x=>x.targets[0]?(x.targets[0].price-x.price)/x.price:0))*100).toFixed(2)+"%";
-  setups.forEach(s=>render(s,wrap));
- }
- document.getElementById("scanButton").disabled=false;
+  // pick highest-count bucket with ≥2 touches; else use max high
+  const entries=Object.entries(buckets).filter(([,n])=>n>=2);
+  if(entries.length){
+    entries.sort((a,b)=>b[1]-a[1]);                // most touches
+    const [level,count]=entries[0];
+    const hi=parseFloat(level);
+    return{hi,lo:hi-step/2,touches:count};
+  }
+  const hi=Math.max(...highs);
+  return{hi,lo:hi-step/2,touches:1};
 }
+
+/* ========== Analyzer ========== */
+async function analyse(sym,intvl,opt){
+  try{
+    const cs=await candles(sym,intvl);if(cs.length<60)return{error:"Not enough candles"};
+    const cls=cs.map(c=>c.c),vols=cs.map(c=>c.v),last=cs.at(-1);
+
+    /* StochRSI */
+    const{stochRsi:srArr,maStochRsi:maArr}=stochRsi14(cls);
+    const sr=srArr.at(-1),ma=maArr.at(-1),prvSr=srArr.at(-2),prvMa=maArr.at(-2);
+
+    /* Bullish divergence */
+    const win=12;const a=cs.slice(-win*2,-win),b=cs.slice(-win);
+    const low1=Math.min(...a.map(c=>c.l)),low2=Math.min(...b.map(c=>c.l));
+    const idx1=a.findIndex(c=>c.l===low1),idx2=b.findIndex(c=>c.l===low2);
+    const sr1=srArr.at(-(win*2-idx1)),sr2=srArr.at(-(idx2+1));
+    const bullDiv=low2<low1 && sr2>sr1;
+
+    /* Volume thrust */
+    const avg2=avg(vols.slice(-2)),avg25=avg(vols.slice(-26,-1));
+    const volOK=avg2>=avg25*0.8;
+
+    /* Resistance range touched multiple times */
+    const {hi:resHi,lo:resLo,touches}=findResistanceRange(cs,24);
+    const dist=((last.c-resHi)/resHi)*100;
+    const distStr=`${dist>=0?'+':''}${dist.toFixed(2)}%`;
+    const nearRes=Math.abs(dist)<=2.0 && touches>=2;
+
+    /* ATR stop & RR */
+    const atr=avg(cs.slice(-15).map((c,i,a)=>
+      i===0?c.h-c.l:Math.max(c.h-c.l,Math.abs(c.h-a[i-1].c),Math.abs(c.l-a[i-1].c))));
+    const stop=last.c-2*atr;
+
+    /* FVG targets */
+    const fvg=[];for(let i=2;i<cs.length-2;i++)
+      if(cs[i-1].h<cs[i+1].l && cs[i+1].l>last.c)fvg.push(cs[i+1].l);
+    const tgs=fvg.filter(t=>((t-last.c)/last.c)*100>=opt.minTargetPercent)
+                 .sort((a,b)=>a-b).slice(0,4)
+                 .map(t=>({price:t,pct:((t-last.c)/last.c*100).toFixed(1)}));
+    const bestRR=tgs.length?Math.max(...tgs.map(t=>(t.price-last.c)/(last.c-stop))):0;
+
+    /* OBV uptick */
+    const obv=[0];for(let i=1;i<cls.length;i++)
+      obv.push(obv[i-1]+(cls[i]>cls[i-1]?vols[i]:cls[i]<cls[i-1]?-vols[i]:0));
+    const obvOK=obv.at(-1)>obv.at(-2)&&obv.at(-2)>obv.at(-3);
+
+    /* Criteria */
+    const crit=[
+      {n:"Vol thrust",               p:volOK,        val:`${avg2.toFixed(0)}/${avg25.toFixed(0)}`},
+      {n:`Near Res ±2% (${touches}×)`,p:nearRes,      val:`${distStr}`},
+      {n:"StochRSI Cross",           p:prvSr<prvMa && sr>ma, val:`SR ${sr.toFixed(1)}/MA ${ma.toFixed(1)}`},
+      {n:"StochRSI <40",             p:sr<40 && ma<40,       val:`${sr.toFixed(1)}`},
+      {n:`R:R ≥ ${opt.minRR}`,       p:bestRR>=opt.minRR,    val:bestRR.toFixed(2)},
+      {n:"StochRSI Bull Div",        p:bullDiv,      val:`${sr1?.toFixed(1)}→${sr2?.toFixed(1)}`},
+      {n:"OBV ↑",                    p:obvOK,        val:""}];
+
+    const passed=crit.filter(c=>c.p).length,qualified=passed>=opt.need;
+    return{sym:sym,qual:qualified,crit,passed,price:last.c,
+           resLo,resHi,touches,distance:distStr,stop:stop.toFixed(3),
+           rr:bestRR.toFixed(2),targets:tgs};
+  }catch(e){return{error:e.message};}
+}
+
+/* ========== Renderer ========== */
+function render(r,holder){
+  const tgt=r.targets.map(t=>`${t.price.toFixed(3)} (${t.pct}%)`).join(" → ")||"–";
+  const d=document.createElement("div");d.className="trade-box";d.innerHTML=`
+    <h2>${r.qual?"✅":"❌"} ${r.sym} ${r.qual?"Qualified":"Not Qualified"}</h2>
+    <table>
+      <tr><th>Entry</th><td>${r.price.toFixed(3)}</td></tr>
+      <tr><th>Resistance Range</th><td>${r.resLo.toFixed(3)}–${r.resHi.toFixed(3)} (${r.touches} touches)</td></tr>
+      <tr><th>Distance to Range Top</th><td>${r.distance}</td></tr>
+      <tr><th>Stop</th><td>${r.stop}</td></tr>
+      <tr><th>Targets</th><td>${tgt}</td></tr>
+      <tr><th>R:R</th><td>${r.rr}</td></tr>
+    </table>
+    <table><thead><tr><th>Criteria</th><th>Status</th></tr></thead><tbody>
+      ${r.crit.map(c=>`<tr><td>${c.n}</td><td class="${c.p?"pass":"fail"}">
+       ${c.p?"✅":"❌"} ${c.val}</td></tr>`).join("")}
+    </tbody></table>`;holder.appendChild(d);
+}
+
+/* ========== Bulk Scan ========== */
+async function scan(){
+  const opt={minRR:+document.getElementById("minRR").value,
+             minTargetPercent:+document.getElementById("minTargetPercent").value,
+             need:4};
+  const intvl=document.getElementById("timeframe").value;
+  const res=document.getElementById("scanResults");res.innerHTML="";
+  document.getElementById("coinsScanned").textContent="0";
+  document.getElementById("qualifiedSetups").textContent="0";
+  log("Starting scan…");document.getElementById("scanButton").disabled=true;
+
+  const coins=await topCoins();const qual=[];
+  for(let i=0;i<coins.length;i++){
+    const sym=coins[i].symbol;document.getElementById("coinsScanned").textContent=i+1;
+    log(`Analysing ${sym}`);const r=await analyse(sym,intvl,opt);
+    if(!r.error && r.qual){qual.push(r);
+      document.getElementById("qualifiedSetups").textContent=qual.length;}
+    if((i+1)%12===0)await sleep(900);}
+  if(!qual.length)res.innerHTML='<p style="color:var(--fail);text-align:center">No setups found.</p>';
+  else qual.forEach(r=>render(r,res));
+  document.getElementById("scanButton").disabled=false;
+}
+
+/* ========== Events ========== */
 document.getElementById("scanButton").onclick=scan;
 document.getElementById("analyzeCoinButton").onclick=async()=>{
- const symIn=document.getElementById("individualCoinInput").value.trim().toUpperCase();
- if(!symIn)return;const sym=symIn.endsWith("USDT")?symIn:symIn+"USDT";
- const tf=document.getElementById("timeframe").value;
- const opt={
-  minRR:+document.getElementById("minRR").value,
-  minTargetPct:+document.getElementById("minTargetPercent").value,
-  volMult:+document.getElementById("volumeMultiplier").value
- };
- const out=document.getElementById("individualAnalysisResult");
- out.innerHTML="<p>Analysing…</p>";
- const res=await analyse(sym,tf,opt);
- out.innerHTML=res.error?`<p style='color:var(--fail)'>${res.error}</p>`:"";if(!res.error)render(res,out);
+  const inp=document.getElementById("individualCoinInput").value.trim().toUpperCase();
+  if(!inp)return;const sym=inp.endsWith("USDT")?inp:inp+"USDT";
+  const holder=document.getElementById("individualAnalysisResult");
+  holder.innerHTML="<p>Analysing…</p>";
+  const opt={minRR:+document.getElementById("minRR").value,
+             minTargetPercent:+document.getElementById("minTargetPercent").value,
+             need:4};
+  const intvl=document.getElementById("timeframe").value;
+  const r=await analyse(sym,intvl,opt);holder.innerHTML="";
+  r.error?holder.innerHTML=`<p style="color:var(--fail)">${r.error}</p>`:render(r,holder);
 };
 </script>
 </body>
