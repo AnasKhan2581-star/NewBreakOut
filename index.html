@@ -79,7 +79,7 @@ const API   = "https://api.binance.com";
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const avg   = arr => arr.reduce((s,v)=>s+v,0)/arr.length || 0;
 const log   = m => {const b=document.getElementById("logBox");
-  b.textContent+=`\n${new Date().toLocaleTimeString()} ${m}\n`;b.scrollTop=b.scrollHeight;};
+  b.textContent+=`\n\n ${new Date().toLocaleTimeString()} ${m}\n`;b.scrollTop=b.scrollHeight;};
 
 /* ========== Data Fetchers ========== */
 const candles = async (sym,intvl,lim=300)=>
