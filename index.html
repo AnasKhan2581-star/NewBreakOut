@@ -217,7 +217,7 @@ function render(r,holder){
 async function scan(){
   const opt={minRR:+document.getElementById("minRR").value,
              minTargetPercent:+document.getElementById("minTargetPercent").value,
-             need:6};
+             need:5};
   const intvl=document.getElementById("timeframe").value;
   const res=document.getElementById("scanResults");res.innerHTML="";
   document.getElementById("coinsScanned").textContent="0";
@@ -245,7 +245,7 @@ document.getElementById("analyzeCoinButton").onclick=async()=>{
   holder.innerHTML="<p>Analysing…</p>";
   const opt={minRR:+document.getElementById("minRR").value,
              minTargetPercent:+document.getElementById("minTargetPercent").value,
-             need:6};
+             need:5};
   const intvl=document.getElementById("timeframe").value;
   const r=await analyse(sym,intvl,opt);holder.innerHTML="";
   r.error?holder.innerHTML=`<p style="color:var(--fail)">${r.error}</p>`:render(r,holder);
