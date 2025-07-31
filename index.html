@@ -189,18 +189,18 @@ async function analyse(sym,intvl,opt){
 
     const passed=crit.filter(c=>c.p).length,qualified=passed>=opt.need;
     return{sym:sym,qual:qualified,crit,passed,price:last.c,
-           resLo,resHi,touches,distance:distStr,stop:stop.toFixed(3),
+           resLo,resHi,touches,distance:distStr,stop:stop.toFixed(4),
            rr:bestRR.toFixed(2),targets:tgs};
   }catch(e){return{error:e.message};}
 }
 
 /* ========== Renderer ========== */
 function render(r,holder){
-  const tgt=r.targets.map(t=>`${t.price.toFixed(3)} (${t.pct}%)`).join(" → ")||"–";
+  const tgt=r.targets.map(t=>`${t.price.toFixed(4)} (${t.pct}%)`).join(" → ")||"–";
   const d=document.createElement("div");d.className="trade-box";d.innerHTML=`
     <h2>${r.qual?"✅":"❌"} ${r.sym} ${r.qual?"Qualified":"Not Qualified"}</h2>
     <table>
-      <tr><th>Entry</th><td>${r.price.toFixed(3)}</td></tr>
+      <tr><th>Entry</th><td>${r.price.toFixed(4)}</td></tr>
       <tr><th>Resistance Range</th><td>${r.resLo.toFixed(3)}–${r.resHi.toFixed(3)} (${r.touches} touches)</td></tr>
       <tr><th>Distance to Range Top</th><td>${r.distance}</td></tr>
       <tr><th>Stop</th><td>${r.stop}</td></tr>
