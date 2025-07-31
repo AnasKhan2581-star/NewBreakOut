@@ -201,7 +201,7 @@ function render(r,holder){
     <h2>${r.qual?"✅":"❌"} ${r.sym} ${r.qual?"Qualified":"Not Qualified"}</h2>
     <table>
       <tr><th>Entry</th><td>${r.price.toFixed(4)}</td></tr>
-      <tr><th>Resistance Range</th><td>${r.resLo.toFixed(3)}–${r.resHi.toFixed(3)} (${r.touches} touches)</td></tr>
+      <tr><th>Resistance Range</th><td>${r.resLo.toFixed(4)}–${r.resHi.toFixed(4)} (${r.touches} touches)</td></tr>
       <tr><th>Distance to Range Top</th><td>${r.distance}</td></tr>
       <tr><th>Stop</th><td>${r.stop}</td></tr>
       <tr><th>Targets</th><td>${tgt}</td></tr>
